@@ -7,10 +7,11 @@
  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3" /></a>
 </p>
 
-**TinyChannels is a blank Rust scaffold for OpenHuman channel and messaging
-primitives.** It is intended to become the pluggable communication layer between
-channels and harnesses without coupling OpenHuman runtime code to one transport,
-provider, or host application.
+**TinyChannels is a Rust library for OpenHuman channel and messaging
+primitives.** It provides the portable channel contract, channel configuration
+schema, connection metadata, route helpers, and backend delegation layer used to
+connect channel surfaces to OpenHuman harnesses without coupling this crate to
+the OpenHuman application crate.
 
 ## Intended Scope
 
@@ -20,8 +21,9 @@ provider, or host application.
 - adapters for OpenHuman channel surfaces
 - observability and lifecycle hooks around channel traffic
 
-This repository currently contains scaffolding only. Public APIs and behavior
-will be added deliberately as the OpenHuman integration shape becomes concrete.
+Runtime side effects are pluggable through `ChannelBackend`. OpenHuman owns the
+actual backend implementation for REST/JWT/config storage, while this crate
+validates channel metadata and delegates operations through that trait.
 
 ## Development
 
@@ -35,6 +37,9 @@ cargo test
 ## Repository Layout
 
 - `src/lib.rs` exports the crate surface.
-- `src/channel/` is reserved for channel-side abstractions.
-- `src/harness/` is reserved for harness communication boundaries.
+- `src/traits.rs` owns `Channel`, `ChannelMessage`, and `SendMessage`.
+- `src/config.rs` owns channel configuration structs migrated from OpenHuman.
+- `src/controllers/` owns connection definitions and backend response types.
+- `src/backend.rs` owns `ChannelBackend` and `ChannelManager`.
+- `src/context.rs`, `src/routes.rs`, and `src/runtime.rs` hold portable runtime helpers.
 - `docs/spec/README.md` tracks the high-level architecture notes.
