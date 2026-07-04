@@ -1,0 +1,35 @@
+name: Feature Request
+description: Propose a TinyChannels capability, API, module, or workflow.
+title: "Feature: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Channel workflow
+      description: What workflow should this unlock?
+      placeholder: "I want a Slack channel adapter to forward messages into an OpenHuman harness..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape
+      description: Describe the API, module, adapter, or behavior you imagine.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or other designs have you considered?
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety, policy, and observability
+      description: Any implications for routing, credentials, message payloads, or events?
+  - type: textarea
+    id: docs
+    attributes:
+      label: Related docs
+      description: Link relevant TinyChannels docs or external references.
