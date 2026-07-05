@@ -1,3 +1,7 @@
+<p align="center">
+ <img src="https://github.com/tinyhumansai/tinyjuice/raw/main/docs/channels.png" />
+</p>
+
 <h1 align="center">TinyChannels</h1>
 
 <p align="center">
