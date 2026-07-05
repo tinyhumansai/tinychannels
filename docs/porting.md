@@ -32,9 +32,10 @@ Runtime side effects are delegated through `ChannelBackend`:
 - Discord guild/channel/permission lookup
 - default channel persistence
 
-OpenHuman should implement `ChannelBackend` with its existing REST client,
-session JWT, config persistence, credential storage, health, and event-bus
-plumbing.
+OpenHuman implements `ChannelBackend` in
+`openhuman-4/src/openhuman/channels/controllers/backend.rs` with its existing
+REST client, session JWT, config persistence, credential storage, health, and
+event-bus plumbing.
 
 ## Not Yet Ported
 
@@ -57,9 +58,10 @@ Per the 2026-07-04 audit, provider portability falls into a ladder:
 ## Current Status and Next Steps
 
 The spec's redesigned local core through Phase 5 is implemented in this crate.
-The relay transport frames and provider wire adapters are still pending, and
-OpenHuman does not yet depend on this crate; the ported files are duplicated
-copies in both repos and will drift until the dependency lands.
+OpenHuman now depends on this crate through a path dependency and has adopted
+the shared traits, controller metadata/types, config structs, runtime helpers,
+and text chunker. The relay transport frames and provider wire adapters are
+still pending.
 
 The phase-by-phase implementation plan, known-bug list, and test-migration
 plan live in

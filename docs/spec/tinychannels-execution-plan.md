@@ -17,10 +17,10 @@ The companion research spec is
 The OpenHuman-side integration plan lives in
 `openhuman-4/docs/plans/tinychannels-integration.md`.
 
-## Current State (audited 2026-07-04; Phases 0-5 local slices landed)
+## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 118 unit tests. Phase 0 hygiene has landed: sandbox-only
+clean) and passes 120 unit tests. Phase 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
 Yuanbao connect credentials are normalized through `YuanbaoConfig`, controller
@@ -46,8 +46,10 @@ slice has landed: `LocalChannelAdapter` covers host-owned local/API/webhook
 delivery, and `src/relay/` ports Hermes' `CapabilityDescriptor`, projection
 defaults, sorted compact JSON, WS-upgrade HMAC token, delivery signature, replay
 window, and multi-secret verification with byte-exact connector vectors.
-OpenHuman does not yet depend on these types, so cross-repo integration remains
-pending:
+OpenHuman now depends on the crate through a path dependency and has adopted
+the shared traits, controller metadata/types, config structs, runtime helpers,
+text chunker, and `ChannelBackend` implementation. Provider wire extraction,
+relay transport frames, and deeper envelope/session migration remain pending:
 
 | Surface | Status |
 | --- | --- |
@@ -55,7 +57,7 @@ pending:
 | Provider config structs (`src/config.rs`, 16 providers) | Ported |
 | Static definitions + auth modes (`src/controllers/definitions.rs`, 8 channels) | Ported |
 | Controller response types (`src/controllers/types.rs`) | Ported |
-| `ChannelBackend` + `ChannelManager` (`src/backend.rs`) | New seam, matches porting.md |
+| `ChannelBackend` + `ChannelManager` (`src/backend.rs`) | New seam; OpenHuman implementation landed |
 | Runtime helpers (`src/context.rs`, `src/routes.rs`, `src/runtime.rs`) | Ported |
 | Spec core types (descriptor, envelope, intent, receipt, capabilities, adapter trait, harness bridge) | Phases 1 and 3 landed locally |
 | Error taxonomy | Phase 1 send taxonomy landed and `TinyChannelsError` wraps structured send errors |
@@ -66,17 +68,17 @@ pending:
 | Relay contract | Phase 5 descriptor + HMAC auth landed; relay transport remains pending |
 | `tests/` integration dir | Empty |
 
-openhuman-4 does **not** depend on this crate yet; every ported file is a
-duplicated copy that will drift (see the openhuman-4 plan).
+openhuman-4 now depends on this crate and re-exports the adopted surfaces from
+legacy paths (see the openhuman-4 plan).
 
 ## Known Bugs and Debt (fix during the phases below)
 
 Carried-over logic bugs (present in both repos unless noted):
 
-1. **Resolved locally in Phase 1:** Telegram forum topics no longer collapse in
-   `conversation_history_key`; the legacy helper includes `thread_ts` for
-   Telegram. The new `ChannelInboundEnvelope` also separates `topic_id` from
-   `thread_id` / reply metadata for the OpenHuman migration.
+1. **Resolved locally and adopted by OpenHuman:** Telegram forum-topic
+   `thread_ts` values no longer fork OpenHuman conversation-history keys. The
+   new `ChannelInboundEnvelope` also separates `topic_id` from `thread_id` /
+   reply metadata for the deeper OpenHuman migration.
 2. **Resolved in Phase 1 core types:** new session keys include `scope_id` as a
    deliberate TinyChannels discriminator. OpenHuman still needs to thread scope
    facts into envelopes during integration.
@@ -86,10 +88,10 @@ Carried-over logic bugs (present in both repos unless noted):
    so it may be intentional per-turn keying — confirm intent with the
    OpenHuman side before changing, then either rename it (`turn_memory_key`)
    or fix it to coalesce per conversation.
-4. **Resolved locally in Phase 2:** portable chunking now supports UTF-16 code
-   units, including the emoji case where character count passes but UTF-16
-   length exceeds the platform limit. OpenHuman still needs to adopt this
-   chunker for Telegram/Discord in Step 3.
+4. **Resolved locally and adopted by OpenHuman:** portable chunking now
+   supports UTF-16 code units, including the emoji case where character count
+   passes but UTF-16 length exceeds the platform limit. OpenHuman Telegram and
+   Discord splitting now call the crate chunker.
 5. **No outbound idempotency.** `SendMessage` has no idempotency key; a
    retried send after a transport error double-posts. Phase 1's
    `ChannelOutboundIntent.idempotency_key` addresses this.
