@@ -43,9 +43,9 @@ pub use dispatch::{DispatchOptions, DispatchRequest, TurnDispatcher, TurnHandle}
 pub use noop::{ChannelHostBuilder, NoopHost};
 pub use services::{
     ApprovalAsk, ApprovalDecision, ApprovalGate, ConversationMessage, ConversationStore, EventSink,
-    LifecycleRegistry, ReactionDecision, ReactionGate, RunEventAppend, RunLedger, RunTelemetry,
-    RunUpsert, ShutdownHook, SpeechRequest, SpeechResult, SpeechSynthesizer, Transcriber,
-    TranscriptionRequest, TranscriptionResult,
+    LifecycleRegistry, ReactionDecision, ReactionGate, ReactionQuery, RunEventAppend, RunLedger,
+    RunTelemetry, RunUpsert, ShutdownHook, SpeechRequest, SpeechResult, SpeechSynthesizer,
+    Transcriber, TranscriptionRequest, TranscriptionResult,
 };
 
 use crate::config::ChannelsConfig;
