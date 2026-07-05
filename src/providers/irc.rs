@@ -617,6 +617,7 @@ pub mod test_support {
 
     use super::*;
 
+    #[allow(clippy::type_complexity)]
     pub fn parse_line_for_test(
         line: &str,
     ) -> Option<(Option<String>, String, Vec<String>, Option<String>)> {

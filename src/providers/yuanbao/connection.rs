@@ -479,11 +479,11 @@ impl YuanbaoConnection {
 
         // Responses → match against pending requests via msg_id.
         if frame.cmd_type == cmd_type::RESPONSE {
-            if !frame.msg_id.is_empty() {
-                if let Some(tx) = self.pending.lock().remove(&frame.msg_id) {
-                    let _ = tx.send(frame);
-                    return;
-                }
+            if !frame.msg_id.is_empty()
+                && let Some(tx) = self.pending.lock().remove(&frame.msg_id)
+            {
+                let _ = tx.send(frame);
+                return;
             }
             info!(
                 "[yuanbao] response with no waiter cmd={} msg_id={}",

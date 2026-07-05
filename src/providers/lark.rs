@@ -354,10 +354,10 @@ impl LarkChannel {
 
                     // CONTROL frame
                     if frame.method == 0 {
-                        if frame.header_value("type") == "pong" {
-                            if let Some(p) = &frame.payload {
-                                if let Ok(cfg) = serde_json::from_slice::<WsClientConfig>(p) {
-                                    if let Some(secs) = cfg.ping_interval {
+                        if frame.header_value("type") == "pong"
+                            && let Some(p) = &frame.payload
+                                && let Ok(cfg) = serde_json::from_slice::<WsClientConfig>(p)
+                                    && let Some(secs) = cfg.ping_interval {
                                         let secs = secs.max(10);
                                         if secs != ping_secs {
                                             ping_secs = secs;
@@ -365,9 +365,6 @@ impl LarkChannel {
                                             tracing::info!("Lark: ping_interval → {ping_secs}s");
                                         }
                                     }
-                                }
-                            }
-                        }
                         continue;
                     }
 

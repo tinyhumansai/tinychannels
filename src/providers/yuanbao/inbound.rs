@@ -87,6 +87,7 @@ pub enum MwResult {
 }
 
 /// Final outcome of the whole pipeline.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum PipelineOutcome {
     Dispatch(PipelineCtx),
@@ -124,10 +125,10 @@ impl DedupCache {
         if self.index.contains(id) {
             return true;
         }
-        if self.order.len() >= self.capacity {
-            if let Some((old, _)) = self.order.pop_front() {
-                self.index.remove(&old);
-            }
+        if self.order.len() >= self.capacity
+            && let Some((old, _)) = self.order.pop_front()
+        {
+            self.index.remove(&old);
         }
         self.order.push_back((id.to_string(), Instant::now()));
         self.index.insert(id.to_string());
@@ -599,7 +600,7 @@ mod tests {
         // Synthesize an InboundMessagePush from scratch:
         use crate::providers::yuanbao::proto;
         let mut buf = Vec::new();
-        let mut put_str = |fnum: u32, s: &str, b: &mut Vec<u8>| {
+        let put_str = |fnum: u32, s: &str, b: &mut Vec<u8>| {
             proto::encode_varint(((fnum as u64) << 3) | 2, b);
             proto::encode_varint(s.len() as u64, b);
             b.extend_from_slice(s.as_bytes());

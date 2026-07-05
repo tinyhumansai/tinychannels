@@ -259,6 +259,7 @@ end tell"#
     }
 }
 
+#[allow(dead_code)]
 /// Get the current max ROWID from the messages table.
 /// Uses rusqlite with parameterized queries for security (CWE-89 prevention).
 async fn get_max_rowid(db_path: &Path) -> anyhow::Result<i64> {
@@ -279,6 +280,7 @@ async fn get_max_rowid(db_path: &Path) -> anyhow::Result<i64> {
 /// Fetch messages newer than `since_rowid`.
 /// Uses rusqlite with parameterized queries for security (CWE-89 prevention).
 /// The `since_rowid` parameter is bound safely, preventing SQL injection.
+#[allow(dead_code)]
 async fn fetch_new_messages(
     db_path: &Path,
     since_rowid: i64,

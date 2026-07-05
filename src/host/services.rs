@@ -107,7 +107,14 @@ pub enum ApprovalDecision {
 #[async_trait]
 pub trait ApprovalGate: Send + Sync {
     /// Raise an approval and await its resolution (blocks the turn).
-    async fn request(&self, ask: ApprovalAsk) -> anyhow::Result<ApprovalDecision>;
+    ///
+    /// Defaults to an "unsupported" error: in OpenHuman today approvals are
+    /// *raised* by the tool gate (host-internal) and channels only observe the
+    /// surface + [`ApprovalGate::parse_reply`] inbound replies. Hosts that can
+    /// mediate interactive requests override this.
+    async fn request(&self, _ask: ApprovalAsk) -> anyhow::Result<ApprovalDecision> {
+        anyhow::bail!("interactive approval requests are not supported by this host")
+    }
 
     /// Interpret a free-text inbound reply as an approval decision
     /// (`"yes"`/`"no"`/`"1"`), or `None` if it isn't one. Default: no parse.
@@ -128,15 +135,21 @@ pub struct ReactionQuery {
     pub channel_type: String,
 }
 
-/// Whether the assistant should react, with an optional rationale.
+/// Whether the assistant should react, plus the emoji to use for an emoji
+/// reaction (`presentation`/`telegram` ACK reactions) and an optional rationale.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ReactionDecision {
     pub should_react: bool,
+    /// Emoji to react with when `should_react` is true (`None` = no emoji,
+    /// e.g. a pure suppress/allow gate). Mirrors OpenHuman's `ReactionDecision`.
+    pub emoji: Option<String>,
+    /// Optional human-readable rationale for logs/telemetry.
     pub reason: Option<String>,
 }
 
-/// Inference-driven "should I respond?" gate for busy group channels.
-/// Needed by: **web, telegram, presentation** (group-chat suppression).
+/// Inference-driven reaction gate: whether to respond/react and with what
+/// emoji. Backs both group-chat suppression and emoji-ACK reactions.
+/// Needed by: **web, telegram, presentation**.
 #[async_trait]
 pub trait ReactionGate: Send + Sync {
     async fn should_react(&self, query: ReactionQuery) -> anyhow::Result<ReactionDecision>;
@@ -195,8 +208,13 @@ pub trait EventSink: Send + Sync {
 // Lifecycle registry (graceful shutdown)
 // ---------------------------------------------------------------------------
 
-/// A one-shot cleanup callback run at process shutdown.
-pub type ShutdownHook = Box<dyn FnOnce() + Send + 'static>;
+/// The future a [`ShutdownHook`] returns when invoked.
+pub type ShutdownFuture = std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'static>>;
+
+/// A one-shot **async** cleanup callback run at process shutdown. Async so a
+/// hook can await real teardown (close a WebSocket, flush a session) — mirrors
+/// the host's own async shutdown-hook contract.
+pub type ShutdownHook = Box<dyn FnOnce() -> ShutdownFuture + Send + 'static>;
 
 /// Register cleanup that must run when the host shuts down (close sockets,
 /// flush sessions). Needed by: **whatsapp_web** (WA session teardown), any
@@ -204,6 +222,21 @@ pub type ShutdownHook = Box<dyn FnOnce() + Send + 'static>;
 pub trait LifecycleRegistry: Send + Sync {
     /// Register a named shutdown hook. Names aid logging/dedupe.
     fn register_shutdown(&self, name: &str, hook: ShutdownHook);
+}
+
+// ---------------------------------------------------------------------------
+// Allowlist store (persisted access control)
+// ---------------------------------------------------------------------------
+
+/// Persist a newly-authorized identity into a channel's configured allowlist so
+/// it survives restarts. Needed by: **telegram** (first-run bind-code pairing
+/// promotes the paired account into `allowed_users`). The host owns the config
+/// file; the provider only names the channel + identity.
+#[async_trait]
+pub trait AllowlistStore: Send + Sync {
+    /// Add `identity` to `channel`'s persisted allowlist (idempotent). Errors
+    /// if the channel has no config section to persist into.
+    async fn persist_allowed_identity(&self, channel: &str, identity: &str) -> anyhow::Result<()>;
 }
 
 // ---------------------------------------------------------------------------

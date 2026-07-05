@@ -330,12 +330,11 @@ async fn check_channel_permissions_at_base(
         let is_everyone = role_id == guild_id; // @everyone role ID == guild ID
         let is_member_role = member_role_ids.contains(&role_id);
 
-        if is_everyone || is_member_role {
-            if let Some(perms_str) = role.get("permissions").and_then(|p| p.as_str()) {
-                if let Ok(perms) = perms_str.parse::<u64>() {
-                    permissions |= perms;
-                }
-            }
+        if (is_everyone || is_member_role)
+            && let Some(perms_str) = role.get("permissions").and_then(|p| p.as_str())
+            && let Ok(perms) = perms_str.parse::<u64>()
+        {
+            permissions |= perms;
         }
     }
 

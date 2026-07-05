@@ -7,8 +7,8 @@
 //! (e.g. dispatcher + STT this week, ledger next) without a bespoke host type.
 
 use super::{
-    ApprovalGate, ChannelHost, ConversationStore, EventSink, LifecycleRegistry, Memory,
-    ReactionGate, RunLedger, SpeechSynthesizer, Transcriber, TurnDispatcher,
+    AllowlistStore, ApprovalGate, ChannelHost, ConversationStore, EventSink, LifecycleRegistry,
+    Memory, ReactionGate, RunLedger, SpeechSynthesizer, Transcriber, TurnDispatcher,
 };
 use std::sync::Arc;
 
@@ -45,6 +45,7 @@ pub struct ChannelHostBuilder {
     events: Option<Arc<dyn EventSink>>,
     lifecycle: Option<Arc<dyn LifecycleRegistry>>,
     ledger: Option<Arc<dyn RunLedger>>,
+    allowlist: Option<Arc<dyn AllowlistStore>>,
 }
 
 impl ChannelHostBuilder {
@@ -92,6 +93,10 @@ impl ChannelHostBuilder {
         self.ledger = Some(value);
         self
     }
+    pub fn allowlist(mut self, value: Arc<dyn AllowlistStore>) -> Self {
+        self.allowlist = Some(value);
+        self
+    }
 
     /// Finalize into a shareable host.
     pub fn build(self) -> Arc<dyn ChannelHost> {
@@ -106,6 +111,7 @@ impl ChannelHostBuilder {
             events: self.events,
             lifecycle: self.lifecycle,
             ledger: self.ledger,
+            allowlist: self.allowlist,
         })
     }
 }
@@ -122,6 +128,7 @@ struct CompositeHost {
     events: Option<Arc<dyn EventSink>>,
     lifecycle: Option<Arc<dyn LifecycleRegistry>>,
     ledger: Option<Arc<dyn RunLedger>>,
+    allowlist: Option<Arc<dyn AllowlistStore>>,
 }
 
 impl ChannelHost for CompositeHost {
@@ -154,5 +161,8 @@ impl ChannelHost for CompositeHost {
     }
     fn ledger(&self) -> Option<Arc<dyn RunLedger>> {
         self.ledger.clone()
+    }
+    fn allowlist(&self) -> Option<Arc<dyn AllowlistStore>> {
+        self.allowlist.clone()
     }
 }

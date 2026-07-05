@@ -177,19 +177,17 @@ pub async fn download_url(
 ) -> Result<(Vec<u8>, String), YuanbaoError> {
     let limit = max_size_mb.saturating_mul(1024 * 1024);
 
-    if let Ok(head) = http.head(url).send().await {
-        if let Some(len) = head
+    if let Ok(head) = http.head(url).send().await
+        && let Some(len) = head
             .headers()
             .get(reqwest::header::CONTENT_LENGTH)
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.parse::<u64>().ok())
-        {
-            if len > limit {
-                return Err(YuanbaoError::Media(format!(
-                    "remote file too large: {len} > limit {limit}"
-                )));
-            }
-        }
+        && len > limit
+    {
+        return Err(YuanbaoError::Media(format!(
+            "remote file too large: {len} > limit {limit}"
+        )));
     }
 
     let resp = http

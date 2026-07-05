@@ -142,13 +142,13 @@ impl InboundMessage {
     pub fn extract_text(&self) -> String {
         let mut out = String::new();
         for el in &self.msg_body {
-            if el.msg_type == "TIMTextElem" {
-                if let Some(ref t) = el.msg_content.text {
-                    if !out.is_empty() {
-                        out.push('\n');
-                    }
-                    out.push_str(t);
+            if el.msg_type == "TIMTextElem"
+                && let Some(ref t) = el.msg_content.text
+            {
+                if !out.is_empty() {
+                    out.push('\n');
                 }
+                out.push_str(t);
             }
         }
         out
@@ -164,10 +164,11 @@ impl InboundMessage {
                         urls.push(info.url.clone());
                     }
                 }
-                if let Some(ref url) = el.msg_content.url {
-                    if !url.is_empty() && !urls.contains(url) {
-                        urls.push(url.clone());
-                    }
+                if let Some(ref url) = el.msg_content.url
+                    && !url.is_empty()
+                    && !urls.contains(url)
+                {
+                    urls.push(url.clone());
                 }
             }
         }
