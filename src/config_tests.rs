@@ -96,7 +96,19 @@ fn has_listening_integrations_ignores_push_webhook() {
 }
 
 #[test]
-fn has_listening_integrations_ignores_relay_until_runtime_is_adopted() {
+fn has_listening_integrations_ignores_incomplete_relay_config() {
+    let cfg = ChannelsConfig {
+        relay: Some(RelayRuntimeConfig {
+            url: "wss://relay.example.test".into(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    assert!(!cfg.has_listening_integrations());
+}
+
+#[test]
+fn has_listening_integrations_detects_relay_runtime() {
     let cfg = ChannelsConfig {
         relay: Some(RelayRuntimeConfig {
             url: "wss://relay.example.test".into(),
@@ -108,7 +120,7 @@ fn has_listening_integrations_ignores_relay_until_runtime_is_adopted() {
         }),
         ..Default::default()
     };
-    assert!(!cfg.has_listening_integrations());
+    assert!(cfg.has_listening_integrations());
 }
 
 #[test]

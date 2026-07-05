@@ -56,9 +56,6 @@ impl ChannelsConfig {
     /// host HTTP server, so enabling it should not spawn a polling/listener
     /// worker from the channel runtime.
     ///
-    /// `relay` is also omitted until hosts wire a concrete relay startup path:
-    /// deserializing relay config must not make a current OpenHuman runtime
-    /// boot and then exit with no local channel listeners.
     pub fn has_listening_integrations(&self) -> bool {
         self.telegram.is_some()
             || self.discord.is_some()
@@ -75,6 +72,10 @@ impl ChannelsConfig {
             || self.yuanbao.is_some()
             || self.matrix.is_some()
             || self.whatsapp.is_some()
+            || self
+                .relay
+                .as_ref()
+                .is_some_and(RelayRuntimeConfig::is_listener_configured)
     }
 }
 
@@ -133,6 +134,10 @@ impl Default for RelayRuntimeConfig {
 }
 
 impl RelayRuntimeConfig {
+    pub fn is_listener_configured(&self) -> bool {
+        !self.url.trim().is_empty() && !self.identities.is_empty()
+    }
+
     pub fn relay_identities(&self) -> Vec<RelayIdentity> {
         self.identities
             .iter()

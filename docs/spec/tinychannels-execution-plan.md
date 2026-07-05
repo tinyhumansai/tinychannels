@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 168 default unit tests, or 171 with `--all-features`. Phase
+clean) and passes 169 default unit tests, or 172 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -61,15 +61,14 @@ legacy top-level JSON/log envelopes; manager sends, direct channel-bus backend
 sends, and legacy `Channel::send` callers now build a `ChannelOutboundIntent`
 and inject a deterministic idempotency key before delegating to the legacy
 message API/provider trait. The portable relay runtime config surface is
-staged in `ChannelsConfig`, but OpenHuman relay startup/adoption remains
-pending. Legacy inbound `ChannelMessage`s now project into
+staged in `ChannelsConfig`, and complete relay config now starts OpenHuman's
+WebSocket relay runtime. Legacy inbound `ChannelMessage`s now project into
 `ChannelInboundEnvelope`s with Telegram topics separated from generic thread
 ids, the envelope can project back to legacy dispatch messages, and OpenHuman
-publishes that envelope on `ChannelMessageReceived` events. OpenHuman also has
-the relay inbound handler seam that accepts authenticated relay envelopes and
-forwards them to the existing dispatch bus; live relay socket startup remains
-pending. Provider wire extraction and deeper session-key adoption remain
-pending:
+publishes that envelope on `ChannelMessageReceived` events. OpenHuman's relay
+inbound handler accepts authenticated relay envelopes and forwards them to the
+existing dispatch bus. Provider wire extraction, outbound relay usage, and
+deeper session-key adoption remain pending:
 
 | Surface | Status |
 | --- | --- |
@@ -133,9 +132,10 @@ Carried-over logic bugs (present in both repos unless noted):
    now. `all_channel_definitions()` is the UI-connectable registry; `web` is
    app-owned and has no config struct, while several config-backed providers
    remain hidden until their setup flows are promoted.
-8. **Resolved in Phase 0:** `has_listening_integrations` intentionally omits
-   `webhook` because webhook delivery is push-based and host-server-owned;
-   this is documented and tested.
+8. **Resolved in Phase 0/5:** `has_listening_integrations` intentionally
+   omits `webhook` because webhook delivery is push-based and
+   host-server-owned; complete relay config now counts as a listener because
+   OpenHuman has a live relay startup path. This is documented and tested.
 9. **Resolved in Phase 0:** `WhatsAppConfig::backend_type` now reports
    `"unconfigured"` when neither Cloud API nor Web session settings exist.
 10. **Resolved in Phase 1:** `ChannelBackend` now returns typed send,
