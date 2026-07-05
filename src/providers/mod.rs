@@ -12,6 +12,7 @@ pub mod qq;
 pub mod signal;
 pub mod slack;
 pub mod whatsapp;
+pub mod whatsapp_web;
 pub mod yuanbao;
 
 pub use dingtalk::DingTalkChannel;
@@ -26,4 +27,5 @@ pub use qq::QQChannel;
 pub use signal::SignalChannel;
 pub use slack::SlackChannel;
 pub use whatsapp::WhatsAppChannel;
+pub use whatsapp_web::WhatsAppWebChannel;
 pub use yuanbao::YuanbaoChannel;

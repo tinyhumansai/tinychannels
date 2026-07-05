@@ -41,6 +41,6 @@ pub use host::{ChannelHost, ChannelHostBuilder, HostCapabilities, NoopHost, Prov
 pub use providers::{
     DingTalkChannel, DiscordChannel, EmailChannel, IMessageChannel, IrcChannel, IrcChannelConfig,
     LarkChannel, LinqChannel, MattermostChannel, QQChannel, SignalChannel, SlackChannel,
-    WhatsAppChannel, YuanbaoChannel,
+    WhatsAppChannel, WhatsAppWebChannel, YuanbaoChannel,
 };
 pub use traits::{Channel, ChannelMessage, ChannelSendExt, SendMessage};

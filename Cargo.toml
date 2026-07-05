@@ -16,6 +16,15 @@ default = []
 # `tokio/net` are now unconditional dependencies (the ported channel providers
 # use them directly), so this feature no longer needs to pull them in.
 relay-websocket = []
+# WhatsApp Web (multi-device) provider — pulls the native whatsapp-rust stack.
+# Off by default; the OpenHuman `whatsapp-web` feature forwards to this one.
+whatsapp-web = [
+    "dep:whatsapp-rust",
+    "dep:whatsapp-rust-tokio-transport",
+    "dep:whatsapp-rust-ureq-http-client",
+    "dep:wacore",
+    "dep:serde-big-array",
+]
 
 [dependencies]
 anyhow = "1"
@@ -56,6 +65,13 @@ mail-parser = "0.11.2"
 
 # Lark/Feishu webhook (HTTP receive mode).
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "query", "ws", "macros"] }
+
+# WhatsApp Web provider (behind the `whatsapp-web` feature).
+serde-big-array = { version = "0.5", optional = true }
+whatsapp-rust = { version = "0.5", optional = true, default-features = false, features = ["tokio-runtime"] }
+whatsapp-rust-tokio-transport = { version = "0.5", optional = true, default-features = false }
+whatsapp-rust-ureq-http-client = { version = "0.5", optional = true }
+wacore = { version = "0.5", optional = true, default-features = false }
 
 [dev-dependencies]
 tempfile = "3"
