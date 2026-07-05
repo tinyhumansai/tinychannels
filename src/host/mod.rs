@@ -42,10 +42,10 @@ mod services;
 pub use dispatch::{DispatchOptions, DispatchRequest, TurnDispatcher, TurnHandle};
 pub use noop::{ChannelHostBuilder, NoopHost};
 pub use services::{
-    ApprovalAsk, ApprovalDecision, ApprovalGate, ConversationMessage, ConversationStore, EventSink,
-    LifecycleRegistry, ReactionDecision, ReactionGate, ReactionQuery, RunEventAppend, RunLedger,
-    RunTelemetry, RunUpsert, ShutdownHook, SpeechRequest, SpeechResult, SpeechSynthesizer,
-    Transcriber, TranscriptionRequest, TranscriptionResult,
+    AllowlistStore, ApprovalAsk, ApprovalDecision, ApprovalGate, ConversationMessage,
+    ConversationStore, EventSink, LifecycleRegistry, ReactionDecision, ReactionGate, ReactionQuery,
+    RunEventAppend, RunLedger, RunTelemetry, RunUpsert, ShutdownHook, SpeechRequest, SpeechResult,
+    SpeechSynthesizer, Transcriber, TranscriptionRequest, TranscriptionResult,
 };
 
 use crate::config::ChannelsConfig;
@@ -72,6 +72,7 @@ pub struct HostCapabilities {
     pub event_sink: bool,
     pub lifecycle: bool,
     pub run_ledger: bool,
+    pub allowlist_store: bool,
 }
 
 impl HostCapabilities {
@@ -87,6 +88,7 @@ impl HostCapabilities {
         event_sink: false,
         lifecycle: false,
         run_ledger: false,
+        allowlist_store: false,
     };
 
     /// Derive the descriptor from a live host by probing each accessor.
@@ -102,6 +104,7 @@ impl HostCapabilities {
             event_sink: host.events().is_some(),
             lifecycle: host.lifecycle().is_some(),
             run_ledger: host.ledger().is_some(),
+            allowlist_store: host.allowlist().is_some(),
         }
     }
 
@@ -159,6 +162,10 @@ pub trait ChannelHost: Send + Sync {
     fn ledger(&self) -> Option<Arc<dyn RunLedger>> {
         None
     }
+    /// Persisted allowlist store (promote paired/authorized identities).
+    fn allowlist(&self) -> Option<Arc<dyn AllowlistStore>> {
+        None
+    }
 
     /// Snapshot of available capabilities. Defaults to probing the accessors;
     /// hosts may override with a cached descriptor.
@@ -174,6 +181,7 @@ pub trait ChannelHost: Send + Sync {
             event_sink: self.events().is_some(),
             lifecycle: self.lifecycle().is_some(),
             run_ledger: self.ledger().is_some(),
+            allowlist_store: self.allowlist().is_some(),
         }
     }
 }

@@ -225,6 +225,21 @@ pub trait LifecycleRegistry: Send + Sync {
 }
 
 // ---------------------------------------------------------------------------
+// Allowlist store (persisted access control)
+// ---------------------------------------------------------------------------
+
+/// Persist a newly-authorized identity into a channel's configured allowlist so
+/// it survives restarts. Needed by: **telegram** (first-run bind-code pairing
+/// promotes the paired account into `allowed_users`). The host owns the config
+/// file; the provider only names the channel + identity.
+#[async_trait]
+pub trait AllowlistStore: Send + Sync {
+    /// Add `identity` to `channel`'s persisted allowlist (idempotent). Errors
+    /// if the channel has no config section to persist into.
+    async fn persist_allowed_identity(&self, channel: &str, identity: &str) -> anyhow::Result<()>;
+}
+
+// ---------------------------------------------------------------------------
 // Run ledger (telemetry / observability)
 // ---------------------------------------------------------------------------
 

@@ -24,6 +24,7 @@ pub mod providers;
 pub mod relay;
 pub mod routes;
 pub mod runtime;
+pub mod security;
 pub mod text;
 pub mod traits;
 
@@ -41,6 +42,6 @@ pub use host::{ChannelHost, ChannelHostBuilder, HostCapabilities, NoopHost, Prov
 pub use providers::{
     DingTalkChannel, DiscordChannel, EmailChannel, IMessageChannel, IrcChannel, IrcChannelConfig,
     LarkChannel, LinqChannel, MattermostChannel, QQChannel, SignalChannel, SlackChannel,
-    WhatsAppChannel, WhatsAppWebChannel, YuanbaoChannel,
+    TelegramChannel, WhatsAppChannel, WhatsAppWebChannel, YuanbaoChannel,
 };
 pub use traits::{Channel, ChannelMessage, ChannelSendExt, SendMessage};
