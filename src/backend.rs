@@ -1,6 +1,6 @@
 //! Backend abstraction for OpenHuman-owned channel operations.
 
-use crate::config::ChannelsConfig;
+use crate::config::{ChannelsConfig, YuanbaoConfig, strip_yuanbao_version_prefix};
 use crate::controllers::{
     ChannelAuthMode, ChannelConnectionResult, ChannelDefinition, ChannelStatusEntry,
     ChannelTestResult, DiscordLinkCheckResult, DiscordLinkStartResult, TelegramLoginCheckResult,
@@ -180,6 +180,7 @@ impl<B: ChannelBackend> ChannelManager<B> {
         definition
             .validate_credentials(auth_mode, credentials_map)
             .map_err(anyhow::Error::msg)?;
+        let credentials = normalize_connect_credentials(channel, credentials)?;
         self.backend
             .connect_channel(&self.config, channel, auth_mode, credentials)
             .await
@@ -211,11 +212,24 @@ impl<B: ChannelBackend> ChannelManager<B> {
             .await
     }
 
+    #[tracing::instrument(skip(self, message), fields(channel = %channel))]
     pub async fn send_message(&self, channel: &str, message: SendMessage) -> anyhow::Result<Value> {
         self.backend
             .send_message(&self.config, channel, message)
             .await
     }
+}
+
+fn normalize_connect_credentials(channel: &str, credentials: Value) -> anyhow::Result<Value> {
+    if channel != "yuanbao" {
+        return Ok(credentials);
+    }
+
+    let mut config: YuanbaoConfig = serde_json::from_value(credentials)?;
+    config.apply_env_defaults();
+    config.bot_version = strip_yuanbao_version_prefix(&config.bot_version).to_string();
+    config.validate().map_err(anyhow::Error::msg)?;
+    Ok(serde_json::to_value(config)?)
 }
 
 #[cfg(test)]
@@ -226,6 +240,7 @@ mod tests {
     #[derive(Default)]
     struct RecordingBackend {
         calls: Mutex<Vec<String>>,
+        credentials: Mutex<Vec<Value>>,
     }
 
     #[async_trait]
@@ -235,12 +250,13 @@ mod tests {
             _config: &ChannelsConfig,
             channel: &str,
             _auth_mode: ChannelAuthMode,
-            _credentials: Value,
+            credentials: Value,
         ) -> anyhow::Result<ChannelConnectionResult> {
             self.calls
                 .lock()
                 .unwrap()
                 .push(format!("connect:{channel}"));
+            self.credentials.lock().unwrap().push(credentials);
             Ok(ChannelConnectionResult {
                 status: "connected".into(),
                 restart_required: false,
@@ -399,6 +415,32 @@ mod tests {
             manager.backend.calls.lock().unwrap().as_slice(),
             ["connect:telegram"]
         );
+    }
+
+    #[tokio::test]
+    async fn connect_normalizes_yuanbao_credentials_before_delegating() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+        manager
+            .connect(
+                "yuanbao",
+                ChannelAuthMode::ApiKey,
+                serde_json::json!({
+                    "app_key": "app",
+                    "app_secret": "secret",
+                    "bot_version": "openhuman/1.2.3"
+                }),
+            )
+            .await
+            .unwrap();
+
+        let credentials = manager.backend.credentials.lock().unwrap();
+        let sent = credentials.last().expect("recorded credentials");
+        assert_eq!(sent["api_domain"], "https://bot.yuanbao.tencent.com");
+        assert_eq!(
+            sent["ws_domain"],
+            "wss://bot-wss.yuanbao.tencent.com/wss/connection"
+        );
+        assert_eq!(sent["bot_version"], "1.2.3");
     }
 
     #[tokio::test]

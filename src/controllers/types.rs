@@ -1,10 +1,11 @@
 //! Shared response types for channel controller operations.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Result returned by `connect_channel`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ChannelConnectionResult {
     /// `"connected"` for credential-based modes, `"pending_auth"` for OAuth/managed.
     pub status: String,
@@ -19,7 +20,7 @@ pub struct ChannelConnectionResult {
 }
 
 /// Single entry returned by `channel_status`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ChannelStatusEntry {
     pub channel_id: String,
     pub auth_mode: super::definitions::ChannelAuthMode,
@@ -35,14 +36,14 @@ pub struct ChannelStatusEntry {
 }
 
 /// Result returned by `test_channel`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ChannelTestResult {
     pub success: bool,
     pub message: String,
 }
 
 /// Result from `telegram_login_start`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TelegramLoginStartResult {
     /// The short-lived link token created by the backend.
@@ -54,7 +55,7 @@ pub struct TelegramLoginStartResult {
 }
 
 /// Result from `telegram_login_check`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct TelegramLoginCheckResult {
     /// Whether the Telegram user has been linked to the app user.
@@ -65,7 +66,7 @@ pub struct TelegramLoginCheckResult {
 }
 
 /// Result from `discord_link_start`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscordLinkStartResult {
     /// The short-lived link token to paste into Discord.
@@ -75,7 +76,7 @@ pub struct DiscordLinkStartResult {
 }
 
 /// Result from `discord_link_check`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscordLinkCheckResult {
     /// Whether the Discord account has been linked to the app user.

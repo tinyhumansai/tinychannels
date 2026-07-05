@@ -1,9 +1,10 @@
 //! Channel definitions: metadata the UI needs to render setup forms and manage connections.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Which authentication mode a channel connection uses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum ChannelAuthMode {
     /// User provides an API key or access token.
     #[serde(rename = "api_key")]
@@ -45,7 +46,7 @@ impl std::str::FromStr for ChannelAuthMode {
 }
 
 /// A single field the UI must collect for a given auth mode.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FieldRequirement {
     /// Machine key, e.g. `"bot_token"`, `"api_key"`.
     pub key: &'static str,
@@ -66,7 +67,7 @@ pub struct FieldRequirement {
 }
 
 /// Describes one auth mode a channel supports.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AuthModeSpec {
     /// Which auth mode this spec describes.
     pub mode: ChannelAuthMode,
@@ -82,7 +83,7 @@ pub struct AuthModeSpec {
 }
 
 /// Runtime capabilities a channel may support.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ChannelCapability {
     SendText,
@@ -96,7 +97,7 @@ pub enum ChannelCapability {
 }
 
 /// Complete definition of a supported channel, suitable for UI rendering.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ChannelDefinition {
     /// Machine identifier, e.g. `"telegram"`, `"discord"`.
     pub id: &'static str,
@@ -157,7 +158,12 @@ impl ChannelDefinition {
     }
 }
 
-/// Return the static registry of all supported channel definitions.
+/// Return the static registry of UI-connectable channel definitions.
+///
+/// This registry is intentionally smaller than `ChannelsConfig`: it lists the
+/// channels currently exposed through the setup UI. `web` is app-owned and has
+/// no config struct here; several config-backed providers remain hidden until
+/// their setup flows are promoted into this registry.
 pub fn all_channel_definitions() -> Vec<ChannelDefinition> {
     vec![
         telegram_definition(),

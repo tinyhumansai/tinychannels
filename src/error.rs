@@ -1,10 +1,13 @@
 //! Crate-wide error helpers.
 
+use thiserror::Error;
+
 /// Result type used by TinyChannels APIs.
 pub type Result<T> = std::result::Result<T, TinyChannelsError>;
 
-/// Minimal error type for the initial scaffold.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Crate-wide error for portable channel operations.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[error("{message}")]
 pub struct TinyChannelsError {
     message: String,
 }
@@ -22,11 +25,3 @@ impl TinyChannelsError {
         &self.message
     }
 }
-
-impl std::fmt::Display for TinyChannelsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.message)
-    }
-}
-
-impl std::error::Error for TinyChannelsError {}

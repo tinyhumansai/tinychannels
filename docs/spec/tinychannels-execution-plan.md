@@ -17,11 +17,16 @@ The companion research spec is
 The OpenHuman-side integration plan lives in
 `openhuman-4/docs/plans/tinychannels-integration.md`.
 
-## Current State (audited 2026-07-04)
+## Current State (audited 2026-07-04; Phase 0 hygiene started)
 
-The crate compiles with zero warnings (`cargo check --all-targets`, clippy
-clean) and passes 60 unit tests. What exists is a faithful lift of OpenHuman's
-*legacy* channel surface, not the spec's redesign:
+The crate compiles with zero warnings (`cargo build --all-targets`, clippy
+clean) and passes 60 unit tests. Phase 0 hygiene has started: sandbox-only
+config types were removed from this crate, webhook listener behavior is
+documented and tested, WhatsApp exposes an explicit unconfigured backend state,
+Yuanbao connect credentials are normalized through `YuanbaoConfig`, controller
+metadata/response types derive `JsonSchema`, and the stale scaffold docs were
+replaced. What exists is still mostly a faithful lift of OpenHuman's *legacy*
+channel surface, not the spec's redesign:
 
 | Surface | Status |
 | --- | --- |
@@ -72,32 +77,31 @@ Carried-over logic bugs (present in both repos unless noted):
 5. **No outbound idempotency.** `SendMessage` has no idempotency key; a
    retried send after a transport error double-posts. Phase 1's
    `ChannelOutboundIntent.idempotency_key` addresses this.
-6. **Dead code in `src/config.rs`:** `SecurityConfig` / `SandboxConfig` /
-   `AuditConfig` / `ResourceLimitsConfig` / `SandboxBackend`
-   (`src/config.rs:367-443`) are sandbox scope creep referenced nowhere —
-   remove them (and their tests) or move them to the crate that owns
-   sandboxing. `YuanbaoConfig::{apply_env_defaults, validate}` and
-   `strip_yuanbao_version_prefix` (`src/config.rs:532-590`) are never called —
-   wire `validate` into the connect flow or drop them.
-   `YuanbaoConfig::max_message_length` is declared but unused until Phase 2.
-7. **Config/definition asymmetry.** 16 config structs vs. 8
-   `all_channel_definitions()` entries; `web` has a definition but no config
-   struct. Reconcile or document which channels are UI-connectable.
-8. **`has_listening_integrations` omits `webhook`** (`src/config.rs:49-65`).
-   Decide (webhook is push-based, so likely correct) and document it in a
-   comment plus a test either way.
-9. **`WhatsAppConfig::backend_type` reports `"cloud"` when unconfigured**
-   (`src/config.rs:293-301`). Return an explicit unconfigured state.
+6. **Resolved in Phase 0:** dead sandbox-only config (`SecurityConfig` /
+   `SandboxConfig` / `AuditConfig` / `ResourceLimitsConfig` /
+   `SandboxBackend`) was removed from the crate. `YuanbaoConfig` defaults,
+   validation, and `strip_yuanbao_version_prefix` are now wired through the
+   manager connect path before delegating to the backend.
+   `YuanbaoConfig::max_message_length` remains declared for Phase 2 chunking.
+7. **Documented in Phase 0:** config/definition asymmetry is intentional for
+   now. `all_channel_definitions()` is the UI-connectable registry; `web` is
+   app-owned and has no config struct, while several config-backed providers
+   remain hidden until their setup flows are promoted.
+8. **Resolved in Phase 0:** `has_listening_integrations` intentionally omits
+   `webhook` because webhook delivery is push-based and host-server-owned;
+   this is documented and tested.
+9. **Resolved in Phase 0:** `WhatsAppConfig::backend_type` now reports
+   `"unconfigured"` when neither Cloud API nor Web session settings exist.
 10. **`ChannelBackend` returns untyped `serde_json::Value`** for
     reaction/thread/discord lookups (`src/backend.rs:57-120`), and
     `ChannelManager` has no wrappers for reaction/thread/managed-link/discord
     ops. Type the returns in Phase 1 and complete the wrappers.
-11. **Hygiene:** `src/lib.rs:5` still says "intentionally blank scaffolding";
-    `thiserror` and `tracing` are declared but unused (adopt `thiserror` for
-    the Phase 1 error enum, start instrumenting sends with `tracing` or drop
-    it); `src/context.rs` vs `src/runtime.rs` naming is inverted (the runtime
-    helpers live in `context.rs`) — rename during Phase 1 while the public
-    API surface is still small.
+11. **Partially resolved in Phase 0:** the stale scaffold crate docs were
+    replaced, `TinyChannelsError` now derives `thiserror::Error`, and manager
+    sends are instrumented with `tracing` while skipping message payloads.
+    `src/context.rs` vs `src/runtime.rs` naming is still inverted (the runtime
+    helpers live in `context.rs`) — rename during Phase 1 while the public API
+    surface is still small.
 
 ## Phased Plan
 

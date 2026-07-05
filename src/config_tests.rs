@@ -84,6 +84,18 @@ fn has_listening_integrations_detects_slack() {
 }
 
 #[test]
+fn has_listening_integrations_ignores_push_webhook() {
+    let cfg = ChannelsConfig {
+        webhook: Some(WebhookConfig {
+            port: 8080,
+            secret: Some("secret".into()),
+        }),
+        ..Default::default()
+    };
+    assert!(!cfg.has_listening_integrations());
+}
+
+#[test]
 fn stream_mode_default_is_off() {
     assert_eq!(StreamMode::default(), StreamMode::Off);
 }
@@ -123,9 +135,9 @@ fn whatsapp_backend_type_web_when_session_path() {
 }
 
 #[test]
-fn whatsapp_backend_type_defaults_to_cloud() {
+fn whatsapp_backend_type_reports_unconfigured() {
     let cfg = empty_whatsapp();
-    assert_eq!(cfg.backend_type(), "cloud");
+    assert_eq!(cfg.backend_type(), "unconfigured");
 }
 
 #[test]
@@ -147,22 +159,6 @@ fn whatsapp_is_web_config() {
     cfg.session_path = Some("/path".into());
     assert!(cfg.is_web_config());
     assert!(!empty_whatsapp().is_web_config());
-}
-
-#[test]
-fn security_config_defaults() {
-    let sec = SecurityConfig::default();
-    assert!(sec.audit.enabled);
-    assert_eq!(sec.audit.log_path, "audit.log");
-    assert_eq!(sec.audit.max_size_mb, 100);
-}
-
-#[test]
-fn sandbox_config_default() {
-    let sb = SandboxConfig::default();
-    assert!(sb.enabled.is_none());
-    assert!(matches!(sb.backend, SandboxBackend::Auto));
-    assert!(sb.firejail_args.is_empty());
 }
 
 #[test]
