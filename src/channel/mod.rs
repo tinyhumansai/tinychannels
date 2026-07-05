@@ -1,5 +1,6 @@
 //! Channel-side messaging abstractions and portable channel layer types.
 
+pub mod adapter;
 pub mod capabilities;
 pub mod envelope;
 pub mod error;
@@ -9,6 +10,11 @@ pub mod session;
 pub mod types;
 
 pub use crate::traits::{Channel, ChannelMessage, SendMessage};
+pub use adapter::{
+    ChannelAdapter, ChannelDelete, ChannelDirectory, ChannelEdit, ChannelInboundSink,
+    ChannelReaction, ChannelReceiveAckPolicy, ChannelResolver, ChannelSetup, ChannelStreamingDraft,
+    ChannelTyping,
+};
 pub use capabilities::{
     CHANNEL_MESSAGE_ACTION_NAMES, ChannelPresentationCapabilities, ChannelStaticCapabilities,
     DurableFinalDeliveryCapability, DurableFinalDeliveryRequirementMap, LengthUnit,

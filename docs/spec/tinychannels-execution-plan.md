@@ -17,10 +17,10 @@ The companion research spec is
 The OpenHuman-side integration plan lives in
 `openhuman-4/docs/plans/tinychannels-integration.md`.
 
-## Current State (audited 2026-07-04; Phases 0-2 local slices landed)
+## Current State (audited 2026-07-04; Phases 0-3 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 83 unit tests. Phase 0 hygiene has landed: sandbox-only
+clean) and passes 87 unit tests. Phase 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
 Yuanbao connect credentials are normalized through `YuanbaoConfig`, controller
@@ -34,8 +34,11 @@ portable text engine has landed in `src/text/`, including UTF-16 measurement and
 surrogate-safe prefixing, markdown fence close/reopen chunking, inline-code
 split avoidance, newline/space split preference, continuation indicators,
 newline/paragraph mode, chunk-limit resolution, and the moved
-`truncate_with_ellipsis` helper. OpenHuman does not yet depend on these types,
-so cross-repo integration remains pending:
+`truncate_with_ellipsis` helper. Phase 3's adapter and harness bridge contracts
+have landed: `ChannelAdapter`, optional extension traits, receive-ack policy,
+account status snapshots, `ChannelTurn`, `ChannelOutputEvent`, and
+capability-driven output-to-intent translation are in place. OpenHuman does not
+yet depend on these types, so cross-repo integration remains pending:
 
 | Surface | Status |
 | --- | --- |
@@ -45,9 +48,10 @@ so cross-repo integration remains pending:
 | Controller response types (`src/controllers/types.rs`) | Ported |
 | `ChannelBackend` + `ChannelManager` (`src/backend.rs`) | New seam, matches porting.md |
 | Runtime helpers (`src/context.rs`, `src/routes.rs`, `src/runtime.rs`) | Ported |
-| Spec core types (descriptor, envelope, intent, receipt, capabilities, adapter trait, harness bridge) | Phase 1 channel types landed; adapter trait and harness bridge remain Phase 3 |
+| Spec core types (descriptor, envelope, intent, receipt, capabilities, adapter trait, harness bridge) | Phases 1 and 3 landed locally |
 | Error taxonomy | Phase 1 send taxonomy landed and `TinyChannelsError` wraps structured send errors |
 | Chunking / length units | Phase 2 text engine landed in `src/text/` with UTF-16/fence/indicator tests |
+| Adapter / harness bridge | Phase 3 landed in `src/channel/adapter.rs` and `src/harness/` |
 | Relay contract | **Not started** |
 | `tests/` integration dir | Empty |
 

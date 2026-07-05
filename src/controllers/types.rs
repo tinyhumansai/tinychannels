@@ -37,6 +37,59 @@ pub struct ChannelStatusEntry {
     pub error: Option<String>,
 }
 
+/// Account/configuration state for a channel adapter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ChannelAccountState {
+    Linked,
+    NotLinked,
+    Configured,
+    NotConfigured,
+    Enabled,
+    Disabled,
+}
+
+/// Last adapter disconnect reason.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ChannelLastDisconnect {
+    pub at_unix_ms: u64,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    pub logged_out: bool,
+}
+
+/// Adapter account status snapshot.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ChannelAccountSnapshot {
+    pub channel_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<String>,
+    pub states: Vec<ChannelAccountState>,
+    pub reconnect_attempts: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_disconnect: Option<ChannelLastDisconnect>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub health_state: Option<String>,
+    pub restart_pending: bool,
+}
+
+impl Default for ChannelAccountSnapshot {
+    fn default() -> Self {
+        Self {
+            channel_id: String::new(),
+            account_id: None,
+            states: vec![ChannelAccountState::NotConfigured],
+            reconnect_attempts: 0,
+            last_disconnect: None,
+            health_state: None,
+            restart_pending: false,
+        }
+    }
+}
+
 /// Result returned by `test_channel`.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ChannelTestResult {
