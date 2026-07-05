@@ -8,7 +8,7 @@ pub mod types;
 pub use credentials::{channel_credential_provider, parse_allowed_users};
 pub use definitions::{
     AuthModeSpec, ChannelAuthMode, ChannelCapability, ChannelDefinition, FieldRequirement,
-    all_channel_definitions, find_channel_definition,
+    all_channel_definitions, channel_config_connected, find_channel_definition,
 };
 pub use schemas::{
     ChannelControllerField, ChannelControllerFieldType, ChannelControllerSchema,

@@ -307,10 +307,11 @@ needs approval/voice/pairing/memory traits).
   and legacy envelope helper tests.
 - The pure allowlist parser / credential-provider key tests from
   `channels/controllers/ops_tests.rs` now live in `src/controllers/credentials.rs`.
-- The portable catalog lookup and connect/test request-shape assertions from
-  `channels/controllers/ops_tests.rs` now live in `src/backend.rs` against a
-  mock `ChannelBackend`; OpenHuman keeps the app-side persistence/REST wiring
-  assertions.
+- The portable catalog lookup, config-backed channel status detection, and
+  connect/test request-shape assertions from `channels/controllers/ops_tests.rs`
+  now live in tinychannels. Request-shape coverage uses `src/backend.rs`
+  against a mock `ChannelBackend`; OpenHuman keeps the app-side persistence/REST
+  wiring assertions.
 - Already mirrored (verify parity, then let openhuman-4 delete its copies once
   it depends on the crate): definitions, config schema, traits, context
   helpers, `compute_max_in_flight_messages`, the `tests/memory.rs` and

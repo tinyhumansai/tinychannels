@@ -3,6 +3,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::config::ChannelsConfig;
+
 /// Which authentication mode a channel connection uses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum ChannelAuthMode {
@@ -182,6 +184,32 @@ pub fn find_channel_definition(channel_id: &str) -> Option<ChannelDefinition> {
     all_channel_definitions()
         .into_iter()
         .find(|d| d.id == channel_id)
+}
+
+/// Whether the supplied channel/auth-mode is connected by runtime config.
+pub fn channel_config_connected(
+    channels: &ChannelsConfig,
+    channel_id: &str,
+    mode: ChannelAuthMode,
+) -> bool {
+    match (channel_id, mode) {
+        ("telegram", ChannelAuthMode::BotToken) => channels.telegram.is_some(),
+        ("discord", ChannelAuthMode::BotToken) => channels.discord.is_some(),
+        ("slack", _) => channels.slack.is_some(),
+        ("mattermost", _) => channels.mattermost.is_some(),
+        ("imessage", ChannelAuthMode::ManagedDm) => channels.imessage.is_some(),
+        ("matrix", _) => channels.matrix.is_some(),
+        ("signal", _) => channels.signal.is_some(),
+        ("whatsapp", _) => channels.whatsapp.is_some(),
+        ("linq", _) => channels.linq.is_some(),
+        ("email", _) => channels.email.is_some(),
+        ("irc", _) => channels.irc.is_some(),
+        ("lark", _) => channels.lark.is_some(),
+        ("dingtalk", _) => channels.dingtalk.is_some(),
+        ("qq", _) => channels.qq.is_some(),
+        ("yuanbao", ChannelAuthMode::ApiKey) => channels.yuanbao.is_some(),
+        _ => false,
+    }
 }
 
 fn telegram_definition() -> ChannelDefinition {
