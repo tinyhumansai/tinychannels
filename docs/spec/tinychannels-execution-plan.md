@@ -17,16 +17,20 @@ The companion research spec is
 The OpenHuman-side integration plan lives in
 `openhuman-4/docs/plans/tinychannels-integration.md`.
 
-## Current State (audited 2026-07-04; Phase 0 hygiene started)
+## Current State (audited 2026-07-04; Phase 0 and Phase 1 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 60 unit tests. Phase 0 hygiene has started: sandbox-only
+clean) and passes 73 unit tests. Phase 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
 Yuanbao connect credentials are normalized through `YuanbaoConfig`, controller
 metadata/response types derive `JsonSchema`, and the stale scaffold docs were
-replaced. What exists is still mostly a faithful lift of OpenHuman's *legacy*
-channel surface, not the spec's redesign:
+replaced. Phase 1's local TinyChannels slice has also landed: core
+`src/channel/` descriptor/envelope/intent/receipt/capability/session/error
+types exist, OpenClaw receipt/action fixtures and Hermes send-error/session
+rules are covered by unit tests, backend returns are typed, and manager wrappers
+cover reaction/thread/managed-link/Discord/default-channel operations. OpenHuman
+does not yet depend on these types, so cross-repo integration remains pending:
 
 | Surface | Status |
 | --- | --- |
@@ -36,8 +40,8 @@ channel surface, not the spec's redesign:
 | Controller response types (`src/controllers/types.rs`) | Ported |
 | `ChannelBackend` + `ChannelManager` (`src/backend.rs`) | New seam, matches porting.md |
 | Runtime helpers (`src/context.rs`, `src/routes.rs`, `src/runtime.rs`) | Ported |
-| Spec core types (descriptor, envelope, intent, receipt, capabilities, adapter trait, harness bridge) | **Not started** — `src/harness/mod.rs` is empty, `src/channel/mod.rs` is a re-export shim |
-| Error taxonomy | **Not started** — `TinyChannelsError` is one opaque string |
+| Spec core types (descriptor, envelope, intent, receipt, capabilities, adapter trait, harness bridge) | Phase 1 channel types landed; adapter trait and harness bridge remain Phase 3 |
+| Error taxonomy | Phase 1 send taxonomy landed and `TinyChannelsError` wraps structured send errors |
 | Chunking / length units | **Not started** — no chunker exists anywhere |
 | Relay contract | **Not started** |
 | `tests/` integration dir | Empty |
@@ -49,19 +53,13 @@ duplicated copy that will drift (see the openhuman-4 plan).
 
 Carried-over logic bugs (present in both repos unless noted):
 
-1. **Telegram forum topics collapse into one session.**
-   `conversation_history_key` drops `thread_ts` for `channel == "telegram"`
-   (`src/context.rs:74-86`; source `openhuman-4
-   src/openhuman/channels/context.rs:76-90`). The carve-out conflates
-   reply-to message ids with forum topic ids. Fix by distinguishing a
-   `topic_id` from a `reply_to_id` in the new envelope, and keying sessions on
-   the topic.
-2. **No workspace/guild/tenant discriminator in session keys.** Keys are
-   `{channel}_{sender}_{reply_target}` (`src/context.rs:74-86`; openhuman-4
-   `bus.rs:1005-1042`). Slack channel ids are only workspace-unique; a
-   multi-workspace bot collides. Neither upstream solves this in the key
-   either (Hermes `scope_id` is relay-routing only) — adding `scope_id` to
-   the session discriminator is a deliberate TinyChannels improvement.
+1. **Resolved locally in Phase 1:** Telegram forum topics no longer collapse in
+   `conversation_history_key`; the legacy helper includes `thread_ts` for
+   Telegram. The new `ChannelInboundEnvelope` also separates `topic_id` from
+   `thread_id` / reply metadata for the OpenHuman migration.
+2. **Resolved in Phase 1 core types:** new session keys include `scope_id` as a
+   deliberate TinyChannels discriminator. OpenHuman still needs to thread scope
+   facts into envelopes during integration.
 3. **`conversation_memory_key` uses `msg.id`** (`src/context.rs:70-72`), so
    every message yields a distinct "conversation" key. openhuman-4 has tests
    asserting this (`tests/memory.rs:conversation_memory_key_uses_message_id`),
@@ -92,10 +90,9 @@ Carried-over logic bugs (present in both repos unless noted):
    this is documented and tested.
 9. **Resolved in Phase 0:** `WhatsAppConfig::backend_type` now reports
    `"unconfigured"` when neither Cloud API nor Web session settings exist.
-10. **`ChannelBackend` returns untyped `serde_json::Value`** for
-    reaction/thread/discord lookups (`src/backend.rs:57-120`), and
-    `ChannelManager` has no wrappers for reaction/thread/managed-link/discord
-    ops. Type the returns in Phase 1 and complete the wrappers.
+10. **Resolved in Phase 1:** `ChannelBackend` now returns typed send,
+    reaction, thread, and Discord lookup results, and `ChannelManager` wraps
+    reaction/thread/managed-link/Discord/default-channel operations.
 11. **Partially resolved in Phase 0:** the stale scaffold crate docs were
     replaced, `TinyChannelsError` now derives `thiserror::Error`, and manager
     sends are instrumented with `tracing` while skipping message payloads.
