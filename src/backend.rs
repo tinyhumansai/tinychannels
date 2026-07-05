@@ -212,6 +212,15 @@ impl<B: ChannelBackend> ChannelManager<B> {
         auth_mode: ChannelAuthMode,
         credentials: Value,
     ) -> anyhow::Result<ChannelTestResult> {
+        let definition = self
+            .describe(channel)
+            .ok_or_else(|| anyhow::anyhow!("unknown channel: {channel}"))?;
+        let credentials_map = credentials
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("credentials must be a JSON object"))?;
+        definition
+            .validate_credentials(auth_mode, credentials_map)
+            .map_err(anyhow::Error::msg)?;
         self.backend
             .test_channel(&self.config, channel, auth_mode, credentials)
             .await
@@ -396,11 +405,15 @@ mod tests {
         async fn test_channel(
             &self,
             _config: &ChannelsConfig,
-            _channel: &str,
+            channel: &str,
             _auth_mode: ChannelAuthMode,
             _credentials: Value,
         ) -> anyhow::Result<ChannelTestResult> {
-            unimplemented!("not used by this test")
+            self.calls.lock().unwrap().push(format!("test:{channel}"));
+            Ok(ChannelTestResult {
+                success: true,
+                message: format!("tested {channel}"),
+            })
         }
 
         async fn send_message(
@@ -596,6 +609,30 @@ mod tests {
             "wss://bot-wss.yuanbao.tencent.com/wss/connection"
         );
         assert_eq!(sent["bot_version"], "1.2.3");
+    }
+
+    #[tokio::test]
+    async fn test_validates_credentials_before_delegating() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+        let err = manager
+            .test("telegram", ChannelAuthMode::BotToken, serde_json::json!({}))
+            .await
+            .unwrap_err();
+        assert!(err.to_string().contains("bot_token"));
+
+        let result = manager
+            .test(
+                "telegram",
+                ChannelAuthMode::BotToken,
+                serde_json::json!({ "bot_token": "123:abc" }),
+            )
+            .await
+            .unwrap();
+        assert!(result.success);
+        assert_eq!(
+            manager.backend.calls.lock().unwrap().as_slice(),
+            ["test:telegram"]
+        );
     }
 
     #[tokio::test]
