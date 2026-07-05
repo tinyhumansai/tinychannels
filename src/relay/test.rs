@@ -1,10 +1,18 @@
 use crate::relay::{
-    CONTRACT_VERSION, CapabilityDescriptor, ConnectorToGatewayFrame, DELIVERY_SIG_HEADER,
-    DELIVERY_TS_HEADER, GatewayToConnectorFrame, PassthroughForward, RelayDescriptorOptions,
-    RelayPlatformEntry, delivery_payload, make_token_at, make_upgrade_token_at, sign,
-    verify_delivery_signature_at, verify_signature, verify_token_at,
+    AuthenticatedRelayInboundEvent, CONTRACT_VERSION, CapabilityDescriptor,
+    ConnectorToGatewayFrame, DELIVERY_SIG_HEADER, DELIVERY_TS_HEADER, GatewayToConnectorFrame,
+    PassthroughForward, RelayDescriptorOptions, RelayFrameIo, RelayIdentity, RelayInboundHandler,
+    RelayPlatformEntry, RelayTransport, RelayTransportError, RelayTransportTimeouts,
+    delivery_payload, make_token_at, make_upgrade_token_at, sign, verify_delivery_signature_at,
+    verify_signature, verify_token_at,
 };
+use async_trait::async_trait;
 use serde_json::json;
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use tokio::sync::Notify;
+use tokio::time::{Duration, sleep};
 
 const SECRET: &str = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
 const CONNECTOR_TOKEN: &str = "Z3ctaW5zdGFuY2UtMTowOjM3YWE3YjE0NWU4NzY0ZDQwM2JhOWM2MzlmMjMwZGQ2M2RlOGVkOTliODhmZWQzNmFhMDI2MjVhOGE3ZTM1NjQ";
@@ -362,4 +370,230 @@ fn passthrough_forward_buffer_ack_uses_same_inbound_ack_frame() {
             buffer_id: "buf-passthrough".into()
         })
     );
+}
+
+#[derive(Default)]
+struct MemoryRelayIo {
+    sent: Mutex<Vec<GatewayToConnectorFrame>>,
+    inbound: Mutex<VecDeque<ConnectorToGatewayFrame>>,
+    sent_notify: Notify,
+    inbound_notify: Notify,
+    closed: AtomicBool,
+}
+
+impl MemoryRelayIo {
+    async fn push(&self, frame: ConnectorToGatewayFrame) {
+        self.inbound.lock().expect("inbound lock").push_back(frame);
+        self.inbound_notify.notify_one();
+    }
+
+    fn sent(&self) -> Vec<GatewayToConnectorFrame> {
+        self.sent.lock().expect("sent lock").clone()
+    }
+
+    async fn wait_for_sent_len(&self, len: usize) {
+        loop {
+            if self.sent.lock().expect("sent lock").len() >= len {
+                return;
+            }
+            self.sent_notify.notified().await;
+        }
+    }
+}
+
+#[async_trait]
+impl RelayFrameIo for MemoryRelayIo {
+    async fn send(&self, frame: GatewayToConnectorFrame) -> Result<(), RelayTransportError> {
+        self.sent.lock().expect("sent lock").push(frame);
+        self.sent_notify.notify_waiters();
+        Ok(())
+    }
+
+    async fn recv(&self) -> Result<Option<ConnectorToGatewayFrame>, RelayTransportError> {
+        loop {
+            if let Some(frame) = self.inbound.lock().expect("inbound lock").pop_front() {
+                return Ok(Some(frame));
+            }
+            if self.closed.load(Ordering::SeqCst) {
+                return Ok(None);
+            }
+            self.inbound_notify.notified().await;
+        }
+    }
+}
+
+#[derive(Default)]
+struct RecordingInboundHandler {
+    events: Mutex<Vec<AuthenticatedRelayInboundEvent>>,
+}
+
+#[async_trait]
+impl RelayInboundHandler for RecordingInboundHandler {
+    async fn handle(
+        &self,
+        event: AuthenticatedRelayInboundEvent,
+    ) -> Result<(), RelayTransportError> {
+        self.events.lock().expect("events lock").push(event);
+        Ok(())
+    }
+}
+
+fn short_relay_timeouts() -> RelayTransportTimeouts {
+    RelayTransportTimeouts {
+        handshake_ms: 500,
+        outbound_ms: 500,
+        idle_ms: 500,
+    }
+}
+
+fn discord_transport(io: Arc<MemoryRelayIo>) -> RelayTransport {
+    RelayTransport::new(
+        vec![RelayIdentity {
+            platform: "discord".into(),
+            bot_id: "appShared".into(),
+        }],
+        io,
+        short_relay_timeouts(),
+    )
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn relay_transport_connect_sends_hello_and_handshake_reads_descriptor() {
+    let io = Arc::new(MemoryRelayIo::default());
+    let transport = discord_transport(io.clone());
+
+    transport.connect().await.expect("connect");
+    assert_eq!(
+        io.sent(),
+        vec![GatewayToConnectorFrame::Hello {
+            platform: "discord".into(),
+            bot_id: "appShared".into()
+        }]
+    );
+
+    io.push(ConnectorToGatewayFrame::Descriptor {
+        descriptor: telegram_descriptor(),
+    })
+    .await;
+    assert_eq!(
+        transport.handshake().await.expect("handshake"),
+        telegram_descriptor()
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn relay_transport_outbound_waits_for_matching_result() {
+    let io = Arc::new(MemoryRelayIo::default());
+    let transport = Arc::new(discord_transport(io.clone()));
+    transport.connect().await.expect("connect");
+
+    let task = {
+        let transport = transport.clone();
+        tokio::spawn(async move {
+            transport
+                .send_outbound(json!({"op":"send","text":"hi"}), Some("discord"))
+                .await
+        })
+    };
+
+    io.wait_for_sent_len(2).await;
+    let sent = io.sent();
+    let GatewayToConnectorFrame::Outbound {
+        request_id,
+        action,
+        platform,
+        bot_id,
+    } = &sent[1]
+    else {
+        panic!("expected outbound frame");
+    };
+    assert_eq!(request_id, "req-1");
+    assert_eq!(action, &json!({"op":"send","text":"hi"}));
+    assert_eq!(platform.as_deref(), Some("discord"));
+    assert_eq!(bot_id.as_deref(), Some("appShared"));
+
+    io.push(ConnectorToGatewayFrame::OutboundResult {
+        request_id: request_id.clone(),
+        result: json!({"success":true,"message_id":"srv-send"}),
+    })
+    .await;
+    assert_eq!(
+        task.await.expect("task").expect("outbound result"),
+        json!({"success":true,"message_id":"srv-send"})
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn relay_transport_inbound_handler_runs_before_buffer_ack() {
+    let io = Arc::new(MemoryRelayIo::default());
+    let transport = discord_transport(io.clone());
+    let handler = Arc::new(RecordingInboundHandler::default());
+    transport.set_inbound_handler(handler.clone()).await;
+    transport.connect().await.expect("connect");
+
+    io.push(ConnectorToGatewayFrame::Inbound {
+        event: json!({
+            "text":"hello",
+            "source":{
+                "platform":"discord",
+                "delivered_via_upstream_relay":true
+            }
+        }),
+        buffer_id: Some("buf-1".into()),
+    })
+    .await;
+
+    io.wait_for_sent_len(2).await;
+    assert_eq!(
+        io.sent()[1],
+        GatewayToConnectorFrame::InboundAck {
+            buffer_id: "buf-1".into()
+        }
+    );
+    let events = handler.events.lock().expect("events lock");
+    assert_eq!(events.len(), 1);
+    assert!(events[0].delivered_via_authenticated_relay);
+    assert_eq!(
+        events[0].event,
+        json!({"text":"hello","source":{"platform":"discord"}})
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn relay_transport_does_not_ack_inbound_without_handler() {
+    let io = Arc::new(MemoryRelayIo::default());
+    let transport = discord_transport(io.clone());
+    transport.connect().await.expect("connect");
+
+    io.push(ConnectorToGatewayFrame::Inbound {
+        event: json!({"text":"hello"}),
+        buffer_id: Some("buf-1".into()),
+    })
+    .await;
+
+    sleep(Duration::from_millis(20)).await;
+    assert_eq!(
+        io.sent(),
+        vec![GatewayToConnectorFrame::Hello {
+            platform: "discord".into(),
+            bot_id: "appShared".into()
+        }]
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn relay_transport_go_idle_waits_for_connector_ack() {
+    let io = Arc::new(MemoryRelayIo::default());
+    let transport = Arc::new(discord_transport(io.clone()));
+    transport.connect().await.expect("connect");
+
+    let task = {
+        let transport = transport.clone();
+        tokio::spawn(async move { transport.go_idle().await })
+    };
+    io.wait_for_sent_len(2).await;
+    assert_eq!(io.sent()[1], GatewayToConnectorFrame::GoingIdle);
+
+    io.push(ConnectorToGatewayFrame::GoingIdleAck).await;
+    assert!(task.await.expect("task").expect("go idle"));
 }

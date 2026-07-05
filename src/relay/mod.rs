@@ -3,6 +3,7 @@
 pub mod auth;
 pub mod descriptor;
 pub mod frames;
+pub mod transport;
 
 pub use auth::{
     DEFAULT_MAX_SKEW_SECONDS, DEFAULT_UPGRADE_TTL_SECONDS, DELIVERY_SIG_HEADER, DELIVERY_TS_HEADER,
@@ -19,6 +20,10 @@ pub use frames::{
     FRAME_GOING_IDLE_ACK, FRAME_HELLO, FRAME_INBOUND, FRAME_INBOUND_ACK, FRAME_INTERRUPT,
     FRAME_INTERRUPT_INBOUND, FRAME_OUTBOUND, FRAME_OUTBOUND_RESULT, FRAME_PASSTHROUGH_FORWARD,
     GatewayToConnectorFrame, PassthroughForward,
+};
+pub use transport::{
+    RelayFrameIo, RelayIdentity, RelayInboundHandler, RelayInterruptInboundHandler,
+    RelayPassthroughHandler, RelayTransport, RelayTransportError, RelayTransportTimeouts,
 };
 
 #[cfg(test)]
