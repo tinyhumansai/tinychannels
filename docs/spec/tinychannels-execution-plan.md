@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 133 default unit tests, or 135 with `--all-features`. Phase
+clean) and passes 135 default unit tests, or 137 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -53,11 +53,12 @@ descriptor, inbound, outbound result, passthrough-forward, interrupt, idle, and
 buffered ACK flows.
 OpenHuman now depends on the crate through a path dependency and has adopted
 the shared traits, controller metadata/types, config structs, runtime helpers,
-text chunker, and `ChannelBackend` implementation. Provider wire extraction,
-the first manager-routed `list`/`describe`/`connect`/`status`/`set_default`/
-`test`/`get_default`, managed Telegram/Discord link, and reaction/thread
-controller paths plus Discord discovery, relay runtime adoption, and deeper
-envelope/session migration remain pending:
+text chunker, and `ChannelBackend` implementation. The existing channel
+controller entry points now dispatch through `ChannelManager` where they cross
+the crate boundary, including raw-payload send and disconnect paths that
+preserve OpenHuman's legacy top-level JSON/log envelopes. Provider wire
+extraction, relay runtime adoption, and deeper envelope/session migration
+remain pending:
 
 | Surface | Status |
 | --- | --- |
@@ -123,8 +124,9 @@ Carried-over logic bugs (present in both repos unless noted):
 9. **Resolved in Phase 0:** `WhatsAppConfig::backend_type` now reports
    `"unconfigured"` when neither Cloud API nor Web session settings exist.
 10. **Resolved in Phase 1:** `ChannelBackend` now returns typed send,
-    reaction, thread, and Discord lookup results, and `ChannelManager` wraps
-    reaction/thread/managed-link/Discord/default-channel operations.
+    disconnect, reaction, thread, and Discord lookup results; raw send payloads
+    are an explicit backend method; and `ChannelManager` wraps the current
+    controller-facing operations.
 11. **Partially resolved in Phase 0; naming cleanup deferred:** the stale
     scaffold crate docs were replaced, `TinyChannelsError` now derives
     `thiserror::Error`, and manager sends are instrumented with `tracing` while

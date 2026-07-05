@@ -8,10 +8,10 @@ pub use definitions::{
     all_channel_definitions, find_channel_definition,
 };
 pub use types::{
-    ChannelAccountSnapshot, ChannelAccountState, ChannelConnectionResult, ChannelLastDisconnect,
-    ChannelReactionResult, ChannelSendMessageResult, ChannelStatusEntry, ChannelTestResult,
-    ChannelThreadEntry, ChannelThreadListResult, ChannelThreadResult, DiscordChannelEntry,
-    DiscordChannelListResult, DiscordGuildEntry, DiscordGuildListResult, DiscordLinkCheckResult,
-    DiscordLinkStartResult, DiscordPermissionCheckResult, TelegramLoginCheckResult,
-    TelegramLoginStartResult,
+    ChannelAccountSnapshot, ChannelAccountState, ChannelConnectionResult, ChannelDisconnectResult,
+    ChannelLastDisconnect, ChannelReactionResult, ChannelSendMessageResult, ChannelStatusEntry,
+    ChannelTestResult, ChannelThreadEntry, ChannelThreadListResult, ChannelThreadResult,
+    DiscordChannelEntry, DiscordChannelListResult, DiscordGuildEntry, DiscordGuildListResult,
+    DiscordLinkCheckResult, DiscordLinkStartResult, DiscordPermissionCheckResult,
+    TelegramLoginCheckResult, TelegramLoginStartResult,
 };

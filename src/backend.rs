@@ -2,11 +2,11 @@
 
 use crate::config::{ChannelsConfig, YuanbaoConfig, strip_yuanbao_version_prefix};
 use crate::controllers::{
-    ChannelAuthMode, ChannelConnectionResult, ChannelDefinition, ChannelReactionResult,
-    ChannelSendMessageResult, ChannelStatusEntry, ChannelTestResult, ChannelThreadListResult,
-    ChannelThreadResult, DiscordChannelListResult, DiscordGuildListResult, DiscordLinkCheckResult,
-    DiscordLinkStartResult, DiscordPermissionCheckResult, TelegramLoginCheckResult,
-    TelegramLoginStartResult,
+    ChannelAuthMode, ChannelConnectionResult, ChannelDefinition, ChannelDisconnectResult,
+    ChannelReactionResult, ChannelSendMessageResult, ChannelStatusEntry, ChannelTestResult,
+    ChannelThreadListResult, ChannelThreadResult, DiscordChannelListResult, DiscordGuildListResult,
+    DiscordLinkCheckResult, DiscordLinkStartResult, DiscordPermissionCheckResult,
+    TelegramLoginCheckResult, TelegramLoginStartResult,
 };
 use crate::traits::SendMessage;
 use async_trait::async_trait;
@@ -32,7 +32,7 @@ pub trait ChannelBackend: Send + Sync {
         channel: &str,
         auth_mode: ChannelAuthMode,
         clear_memory: bool,
-    ) -> anyhow::Result<ChannelConnectionResult>;
+    ) -> anyhow::Result<ChannelDisconnectResult>;
 
     async fn channel_status(
         &self,
@@ -54,6 +54,17 @@ pub trait ChannelBackend: Send + Sync {
         channel: &str,
         message: SendMessage,
     ) -> anyhow::Result<ChannelSendMessageResult>;
+
+    async fn send_message_value(
+        &self,
+        _config: &ChannelsConfig,
+        _channel: &str,
+        _message: Value,
+    ) -> anyhow::Result<ChannelSendMessageResult> {
+        Err(anyhow::anyhow!(
+            "raw channel message payloads are not supported by this backend"
+        ))
+    }
 
     async fn send_reaction(
         &self,
@@ -196,7 +207,7 @@ impl<B: ChannelBackend> ChannelManager<B> {
         channel: &str,
         auth_mode: ChannelAuthMode,
         clear_memory: bool,
-    ) -> anyhow::Result<ChannelConnectionResult> {
+    ) -> anyhow::Result<ChannelDisconnectResult> {
         self.backend
             .disconnect_channel(&self.config, channel, auth_mode, clear_memory)
             .await
@@ -238,6 +249,17 @@ impl<B: ChannelBackend> ChannelManager<B> {
     ) -> anyhow::Result<ChannelSendMessageResult> {
         self.backend
             .send_message(&self.config, channel, message)
+            .await
+    }
+
+    #[tracing::instrument(skip(self, message), fields(channel = %channel))]
+    pub async fn send_message_value(
+        &self,
+        channel: &str,
+        message: Value,
+    ) -> anyhow::Result<ChannelSendMessageResult> {
+        self.backend
+            .send_message_value(&self.config, channel, message)
             .await
     }
 
@@ -391,11 +413,19 @@ mod tests {
         async fn disconnect_channel(
             &self,
             _config: &ChannelsConfig,
-            _channel: &str,
-            _auth_mode: ChannelAuthMode,
-            _clear_memory: bool,
-        ) -> anyhow::Result<ChannelConnectionResult> {
-            unimplemented!("not used by this test")
+            channel: &str,
+            auth_mode: ChannelAuthMode,
+            clear_memory: bool,
+        ) -> anyhow::Result<ChannelDisconnectResult> {
+            Ok(ChannelDisconnectResult {
+                channel: channel.into(),
+                auth_mode,
+                disconnected: true,
+                restart_required: true,
+                memory_chunks_deleted: clear_memory.then_some(3),
+                message: None,
+                raw: None,
+            })
         }
 
         async fn channel_status(
@@ -441,6 +471,21 @@ mod tests {
                 raw: Some(serde_json::json!({
                 "channel": channel,
                 "content": message.content,
+                })),
+                ..Default::default()
+            })
+        }
+
+        async fn send_message_value(
+            &self,
+            _config: &ChannelsConfig,
+            channel: &str,
+            message: Value,
+        ) -> anyhow::Result<ChannelSendMessageResult> {
+            Ok(ChannelSendMessageResult {
+                raw: Some(serde_json::json!({
+                    "channel": channel,
+                    "message": message,
                 })),
                 ..Default::default()
             })
@@ -675,6 +720,35 @@ mod tests {
         let raw = out.raw.expect("raw send payload");
         assert_eq!(raw["channel"], "telegram");
         assert_eq!(raw["content"], "hello");
+    }
+
+    #[tokio::test]
+    async fn send_message_value_delegates_raw_payload_to_backend() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+        let out = manager
+            .send_message_value(
+                "telegram",
+                serde_json::json!({"text": "hello", "photoUrl": "https://example.test/a.png"}),
+            )
+            .await
+            .unwrap();
+        let raw = out.raw.expect("raw send payload");
+        assert_eq!(raw["channel"], "telegram");
+        assert_eq!(raw["message"]["text"], "hello");
+        assert_eq!(raw["message"]["photoUrl"], "https://example.test/a.png");
+    }
+
+    #[tokio::test]
+    async fn disconnect_delegates_to_backend_with_memory_flag() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+        let out = manager
+            .disconnect("discord", ChannelAuthMode::BotToken, true)
+            .await
+            .unwrap();
+        assert_eq!(out.channel, "discord");
+        assert_eq!(out.auth_mode, ChannelAuthMode::BotToken);
+        assert!(out.disconnected);
+        assert_eq!(out.memory_chunks_deleted, Some(3));
     }
 
     #[tokio::test]

@@ -21,6 +21,36 @@ pub struct ChannelConnectionResult {
     pub message: Option<String>,
 }
 
+/// Result returned by `disconnect_channel`.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ChannelDisconnectResult {
+    pub channel: String,
+    pub auth_mode: super::definitions::ChannelAuthMode,
+    pub disconnected: bool,
+    pub restart_required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_chunks_deleted: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
+}
+
+impl Default for ChannelDisconnectResult {
+    fn default() -> Self {
+        Self {
+            channel: String::new(),
+            auth_mode: super::definitions::ChannelAuthMode::ApiKey,
+            disconnected: false,
+            restart_required: false,
+            memory_chunks_deleted: None,
+            message: None,
+            raw: None,
+        }
+    }
+}
+
 /// Single entry returned by `channel_status`.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ChannelStatusEntry {
