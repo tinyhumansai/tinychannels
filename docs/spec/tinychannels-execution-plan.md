@@ -303,8 +303,8 @@ needs approval/voice/pairing/memory traits).
 ### Migrate from openhuman-4 (surfaces already ported)
 
 - `channels/controllers/schemas_tests.rs` — portable schema-catalog assertions
-  are mirrored here; OpenHuman keeps handler parity, adapter conversion, params,
-  and legacy envelope helper tests.
+  are mirrored here and deleted from OpenHuman; OpenHuman keeps handler parity,
+  adapter conversion, params, and legacy envelope helper tests.
 - The pure allowlist parser / credential-provider key tests from
   `channels/controllers/ops_tests.rs` now live in `src/controllers/credentials.rs`.
 - The portable catalog lookup, config-backed channel status detection, and
@@ -313,9 +313,10 @@ needs approval/voice/pairing/memory traits).
   against a mock `ChannelBackend`; OpenHuman keeps the app-side persistence/REST
   wiring assertions.
 - Already mirrored (verify parity, then let openhuman-4 delete its copies once
-  it depends on the crate): definitions, config schema, traits, context
-  helpers, `compute_max_in_flight_messages`, the `tests/memory.rs` and
-  `tests/runtime_dispatch.rs` key tests.
+  it depends on the crate): config schema, traits, context helpers,
+  `compute_max_in_flight_messages`, the `tests/memory.rs` and
+  `tests/runtime_dispatch.rs` key tests. The duplicate definitions suite is
+  deleted from OpenHuman.
 
 ### New fixtures from upstream (as `tests/` integration suites)
 
