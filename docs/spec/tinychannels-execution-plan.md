@@ -17,10 +17,10 @@ The companion research spec is
 The OpenHuman-side integration plan lives in
 `openhuman-4/docs/plans/tinychannels-integration.md`.
 
-## Current State (audited 2026-07-04; Phase 0 and Phase 1 local slices landed)
+## Current State (audited 2026-07-04; Phases 0-2 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 73 unit tests. Phase 0 hygiene has landed: sandbox-only
+clean) and passes 83 unit tests. Phase 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
 Yuanbao connect credentials are normalized through `YuanbaoConfig`, controller
@@ -29,8 +29,13 @@ replaced. Phase 1's local TinyChannels slice has also landed: core
 `src/channel/` descriptor/envelope/intent/receipt/capability/session/error
 types exist, OpenClaw receipt/action fixtures and Hermes send-error/session
 rules are covered by unit tests, backend returns are typed, and manager wrappers
-cover reaction/thread/managed-link/Discord/default-channel operations. OpenHuman
-does not yet depend on these types, so cross-repo integration remains pending:
+cover reaction/thread/managed-link/Discord/default-channel operations. Phase 2's
+portable text engine has landed in `src/text/`, including UTF-16 measurement and
+surrogate-safe prefixing, markdown fence close/reopen chunking, inline-code
+split avoidance, newline/space split preference, continuation indicators,
+newline/paragraph mode, chunk-limit resolution, and the moved
+`truncate_with_ellipsis` helper. OpenHuman does not yet depend on these types,
+so cross-repo integration remains pending:
 
 | Surface | Status |
 | --- | --- |
@@ -42,7 +47,7 @@ does not yet depend on these types, so cross-repo integration remains pending:
 | Runtime helpers (`src/context.rs`, `src/routes.rs`, `src/runtime.rs`) | Ported |
 | Spec core types (descriptor, envelope, intent, receipt, capabilities, adapter trait, harness bridge) | Phase 1 channel types landed; adapter trait and harness bridge remain Phase 3 |
 | Error taxonomy | Phase 1 send taxonomy landed and `TinyChannelsError` wraps structured send errors |
-| Chunking / length units | **Not started** — no chunker exists anywhere |
+| Chunking / length units | Phase 2 text engine landed in `src/text/` with UTF-16/fence/indicator tests |
 | Relay contract | **Not started** |
 | `tests/` integration dir | Empty |
 
@@ -66,12 +71,10 @@ Carried-over logic bugs (present in both repos unless noted):
    so it may be intentional per-turn keying — confirm intent with the
    OpenHuman side before changing, then either rename it (`turn_memory_key`)
    or fix it to coalesce per conversation.
-4. **Chunking counts `char`s, not UTF-16 code units.** openhuman-4 Telegram
-   (`providers/telegram/text.rs:4-50`, limit 4096) and Discord
-   (`providers/discord/channel.rs:111-154`, limit 2000) both use
-   `.chars().count()`; both platforms count UTF-16 units, so astral-plane
-   content can exceed the API limit. The portable chunker in Phase 2 fixes
-   this once for every provider.
+4. **Resolved locally in Phase 2:** portable chunking now supports UTF-16 code
+   units, including the emoji case where character count passes but UTF-16
+   length exceeds the platform limit. OpenHuman still needs to adopt this
+   chunker for Telegram/Discord in Step 3.
 5. **No outbound idempotency.** `SendMessage` has no idempotency key; a
    retried send after a transport error double-posts. Phase 1's
    `ChannelOutboundIntent.idempotency_key` addresses this.

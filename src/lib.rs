@@ -14,6 +14,7 @@ pub mod error;
 pub mod harness;
 pub mod routes;
 pub mod runtime;
+pub mod text;
 pub mod traits;
 
 pub use backend::{ChannelBackend, ChannelManager};

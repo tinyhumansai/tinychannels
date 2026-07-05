@@ -1,5 +1,6 @@
 //! Shared channel runtime helpers.
 
+use crate::text::truncate_with_ellipsis;
 use crate::traits::ChannelMessage;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -192,21 +193,6 @@ pub async fn build_memory_context(
     }
 
     context
-}
-
-fn truncate_with_ellipsis(input: &str, max_chars: usize) -> String {
-    let mut iter = input.chars();
-    let mut out = String::new();
-    for _ in 0..max_chars {
-        let Some(ch) = iter.next() else {
-            return input.to_string();
-        };
-        out.push(ch);
-    }
-    if iter.next().is_some() {
-        out.push('…');
-    }
-    out
 }
 
 #[cfg(test)]
