@@ -28,6 +28,7 @@ pub use error::{ChannelSendError, SendErrorKind, classify_send_error, is_chat_le
 pub use intent::{
     ChannelOutboundIntent, DeliveryDurability, OutboundPayload,
     legacy_message_value_from_outbound_intent, outbound_intent_from_legacy_message,
+    outbound_intent_from_send_message,
 };
 pub use receipt::{
     MessageReceipt, MessageReceiptPart, MessageReceiptPartKind, MessageReceiptSourceResult,

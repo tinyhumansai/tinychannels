@@ -24,6 +24,7 @@ pub use backend::{ChannelBackend, ChannelManager};
 pub use channel::{
     ChannelOutboundIntent, DeliveryDurability, OutboundPayload,
     legacy_message_value_from_outbound_intent, outbound_intent_from_legacy_message,
+    outbound_intent_from_send_message,
 };
 pub use config::ChannelsConfig;
 pub use controllers::{ChannelAuthMode, ChannelDefinition};

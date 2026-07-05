@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+use crate::traits::SendMessage;
+
 /// Delivery durability requested by core when sending agent output.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -109,6 +111,20 @@ pub fn outbound_intent_from_legacy_message(
         durability: DeliveryDurability::BestEffort,
         payload: OutboundPayload::NativeChannelData { data: message },
     }
+}
+
+/// Build an outbound intent from the legacy typed [`SendMessage`] shape.
+pub fn outbound_intent_from_send_message(
+    channel_id: impl Into<String>,
+    message: &SendMessage,
+) -> ChannelOutboundIntent {
+    let body = serde_json::json!({
+        "content": message.content,
+        "recipient": message.recipient,
+        "subject": message.subject,
+        "thread_ts": message.thread_ts,
+    });
+    outbound_intent_from_legacy_message(channel_id, body)
 }
 
 /// Render an outbound intent back to the legacy backend message payload.

@@ -2,7 +2,7 @@
 
 use crate::channel::{
     ChannelOutboundIntent, legacy_message_value_from_outbound_intent,
-    outbound_intent_from_legacy_message,
+    outbound_intent_from_legacy_message, outbound_intent_from_send_message,
 };
 use crate::config::{ChannelsConfig, YuanbaoConfig, strip_yuanbao_version_prefix};
 use crate::controllers::{
@@ -266,7 +266,10 @@ impl<B: ChannelBackend> ChannelManager<B> {
         message: SendMessage,
     ) -> anyhow::Result<ChannelSendMessageResult> {
         self.backend
-            .send_message(&self.config, channel, message)
+            .send_outbound_intent(
+                &self.config,
+                outbound_intent_from_send_message(channel, &message),
+            )
             .await
     }
 
@@ -863,7 +866,9 @@ mod tests {
             .unwrap();
         let raw = out.raw.expect("raw send payload");
         assert_eq!(raw["channel"], "telegram");
-        assert_eq!(raw["content"], "hello");
+        assert_eq!(raw["message"]["content"], "hello");
+        assert_eq!(raw["message"]["recipient"], "alice");
+        assert_eq!(raw["message"]["idempotencyKey"], raw["idempotencyKey"]);
     }
 
     #[tokio::test]

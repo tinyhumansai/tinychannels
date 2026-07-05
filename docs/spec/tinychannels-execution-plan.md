@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 158 default unit tests, or 160 with `--all-features`. Phase
+clean) and passes 159 default unit tests, or 161 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -57,7 +57,7 @@ credential helpers, config structs, runtime helpers, text chunker, and
 `ChannelBackend` implementation. The existing channel controller entry points
 now dispatch through `ChannelManager` where they cross the crate boundary,
 including raw-payload send and disconnect paths that preserve OpenHuman's
-legacy top-level JSON/log envelopes; controller sends and direct channel-bus
+legacy top-level JSON/log envelopes; manager sends and direct channel-bus
 backend sends now build a `ChannelOutboundIntent` and inject a deterministic
 idempotency key before delegating to the legacy backend message API. Provider
 wire extraction, relay runtime adoption, proactive/provider `Channel::send`
@@ -110,10 +110,11 @@ Carried-over logic bugs (present in both repos unless noted):
 5. **Partially resolved in OpenHuman controller and bus REST sends:** legacy
    `SendMessage` has no idempotency key, so a retried send after a transport
    error can double-post. Phase 1's `ChannelOutboundIntent.idempotency_key`
-   addresses this in the portable contract; `ChannelManager::send_message_value`
-   and direct channel-bus backend sends now convert rich legacy JSON into an
-   outbound intent before backend dispatch. Proactive/provider `Channel::send`
-   paths still need outbound-intent adoption.
+   addresses this in the portable contract; `ChannelManager::send_message`,
+   `ChannelManager::send_message_value`, and direct channel-bus backend sends
+   now convert legacy send shapes into an outbound intent before backend
+   dispatch. Proactive/provider `Channel::send` paths still need
+   outbound-intent adoption.
 6. **Resolved in Phase 0:** dead sandbox-only config (`SecurityConfig` /
    `SandboxConfig` / `AuditConfig` / `ResourceLimitsConfig` /
    `SandboxBackend`) was removed from the crate. `YuanbaoConfig` defaults,

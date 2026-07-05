@@ -357,3 +357,20 @@ fn legacy_message_payload_adds_idempotency_without_dropping_rich_fields() {
     assert_eq!(payload["photoUrl"], "https://example.test/a.png");
     assert_eq!(payload["idempotencyKey"], intent.idempotency_key);
 }
+
+#[test]
+fn send_message_intent_preserves_legacy_typed_fields() {
+    let message = SendMessage::with_subject("hello", "alice", "subject")
+        .in_thread(Some("thread-1".to_string()));
+    let intent = outbound_intent_from_send_message("discord", &message);
+    let payload = legacy_message_value_from_outbound_intent(&intent);
+
+    assert_eq!(intent.channel_id, "discord");
+    assert_eq!(intent.conversation_id, "alice");
+    assert!(intent.idempotency_key.starts_with("legacy-send:discord:"));
+    assert_eq!(payload["content"], "hello");
+    assert_eq!(payload["recipient"], "alice");
+    assert_eq!(payload["subject"], "subject");
+    assert_eq!(payload["thread_ts"], "thread-1");
+    assert_eq!(payload["idempotencyKey"], intent.idempotency_key);
+}
