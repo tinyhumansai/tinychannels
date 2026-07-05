@@ -75,9 +75,11 @@ authenticated envelope frames and starts the WebSocket relay runtime for
 complete relay config. TinyChannels now owns backend-agnostic default-channel
 validation before delegating persistence to the host backend, plus the Hermes
 relay `send` action projection used by OpenHuman outbound relay sends for
-configured relay identities. OpenHuman records TinyChannels session keys as
-conversation metadata for migration. Provider wire adapters and full
-session-key identity adoption are still pending.
+configured relay identities. Relay inbound dispatch now preserves the original
+TinyChannels envelope, including `scope_id`, through OpenHuman received-message
+events. OpenHuman records TinyChannels session keys as conversation metadata
+for migration. Provider wire adapters and full non-relay session-key identity
+adoption are still pending.
 
 The phase-by-phase implementation plan, known-bug list, and test-migration
 plan live in

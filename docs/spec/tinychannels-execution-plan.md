@@ -66,12 +66,13 @@ WebSocket relay runtime. Legacy inbound `ChannelMessage`s now project into
 `ChannelInboundEnvelope`s with Telegram topics separated from generic thread
 ids, the envelope can project back to legacy dispatch messages, and OpenHuman
 publishes that envelope on `ChannelMessageReceived` events. OpenHuman's relay
-inbound handler accepts authenticated relay envelopes and forwards them to the
-existing dispatch bus. OpenHuman now projects outbound intents into Hermes
-relay `send` actions and routes sends through a live relay transport for
-configured relay identities. OpenHuman memory conversation persistence records
-TinyChannels session keys as migration metadata, while full session identity
-switchover and provider wire extraction remain pending:
+inbound handler accepts authenticated relay envelopes and preserves the
+original TinyChannels envelope, including `scope_id`, through dispatch.
+OpenHuman now projects outbound intents into Hermes relay `send` actions and
+routes sends through a live relay transport for configured relay identities.
+OpenHuman memory conversation persistence records TinyChannels session keys as
+migration metadata, while full non-relay session identity switchover and
+provider wire extraction remain pending:
 
 | Surface | Status |
 | --- | --- |
@@ -103,9 +104,11 @@ Carried-over logic bugs (present in both repos unless noted):
    `thread_ts` values no longer fork OpenHuman conversation-history keys. The
    new `ChannelInboundEnvelope` also separates `topic_id` from `thread_id` /
    reply metadata for the deeper OpenHuman migration.
-2. **Resolved in Phase 1 core types:** new session keys include `scope_id` as a
-   deliberate TinyChannels discriminator. OpenHuman still needs to thread scope
-   facts into envelopes during integration.
+2. **Resolved in Phase 1 core types; adopted for relay inbound:** new session
+   keys include `scope_id` as a deliberate TinyChannels discriminator, and
+   OpenHuman preserves relay-supplied envelope scope through dispatch. Non-relay
+   providers still need provider-sourced scope facts when they move to native
+   envelope construction.
 3. **Deferred pending OpenHuman product decision:** `conversation_memory_key`
    uses `msg.id`, so every message yields a distinct "conversation" key.
    openhuman-4 has tests asserting this
