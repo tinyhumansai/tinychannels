@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 155 default unit tests, or 157 with `--all-features`. Phase
+clean) and passes 158 default unit tests, or 160 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -57,8 +57,11 @@ credential helpers, config structs, runtime helpers, text chunker, and
 `ChannelBackend` implementation. The existing channel controller entry points
 now dispatch through `ChannelManager` where they cross the crate boundary,
 including raw-payload send and disconnect paths that preserve OpenHuman's
-legacy top-level JSON/log envelopes. Provider wire extraction, relay runtime
-adoption, and deeper envelope/session migration remain pending:
+legacy top-level JSON/log envelopes; controller send now builds a
+`ChannelOutboundIntent` and injects a deterministic idempotency key before
+delegating to the legacy backend message API. Provider wire extraction, relay
+runtime adoption, bus/proactive outbound-intent adoption, and deeper
+envelope/session migration remain pending:
 
 | Surface | Status |
 | --- | --- |
@@ -104,12 +107,13 @@ Carried-over logic bugs (present in both repos unless noted):
    supports UTF-16 code units, including the emoji case where character count
    passes but UTF-16 length exceeds the platform limit. OpenHuman Telegram and
    Discord splitting now call the crate chunker.
-5. **Resolved in crate types, deferred in OpenHuman integration:** legacy
-   `SendMessage` has no idempotency key, so a retried send after a transport
-   error can double-post. Phase 1's `ChannelOutboundIntent.idempotency_key`
-   addresses this in the portable contract; OpenHuman adoption is deferred
-   until controller sends route through outbound intents instead of the legacy
-   `SendMessage` shape.
+5. **Partially resolved in OpenHuman controller sends:** legacy `SendMessage`
+   has no idempotency key, so a retried send after a transport error can
+   double-post. Phase 1's `ChannelOutboundIntent.idempotency_key` addresses
+   this in the portable contract, and `ChannelManager::send_message_value` now
+   converts the rich legacy controller JSON into an outbound intent before
+   backend dispatch. OpenHuman bus/proactive sends still need outbound-intent
+   adoption.
 6. **Resolved in Phase 0:** dead sandbox-only config (`SecurityConfig` /
    `SandboxConfig` / `AuditConfig` / `ResourceLimitsConfig` /
    `SandboxBackend`) was removed from the crate. `YuanbaoConfig` defaults,

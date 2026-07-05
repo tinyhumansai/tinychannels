@@ -1,5 +1,9 @@
 //! Backend abstraction for OpenHuman-owned channel operations.
 
+use crate::channel::{
+    ChannelOutboundIntent, legacy_message_value_from_outbound_intent,
+    outbound_intent_from_legacy_message,
+};
 use crate::config::{ChannelsConfig, YuanbaoConfig, strip_yuanbao_version_prefix};
 use crate::controllers::{
     ChannelAuthMode, ChannelConnectionResult, ChannelDefinition, ChannelDisconnectResult,
@@ -64,6 +68,20 @@ pub trait ChannelBackend: Send + Sync {
         Err(anyhow::anyhow!(
             "raw channel message payloads are not supported by this backend"
         ))
+    }
+
+    async fn send_outbound_intent(
+        &self,
+        config: &ChannelsConfig,
+        intent: ChannelOutboundIntent,
+    ) -> anyhow::Result<ChannelSendMessageResult> {
+        let channel = intent.channel_id.clone();
+        self.send_message_value(
+            config,
+            &channel,
+            legacy_message_value_from_outbound_intent(&intent),
+        )
+        .await
     }
 
     async fn send_reaction(
@@ -259,7 +277,20 @@ impl<B: ChannelBackend> ChannelManager<B> {
         message: Value,
     ) -> anyhow::Result<ChannelSendMessageResult> {
         self.backend
-            .send_message_value(&self.config, channel, message)
+            .send_outbound_intent(
+                &self.config,
+                outbound_intent_from_legacy_message(channel, message),
+            )
+            .await
+    }
+
+    #[tracing::instrument(skip(self, intent), fields(channel = %intent.channel_id))]
+    pub async fn send_outbound_intent(
+        &self,
+        intent: ChannelOutboundIntent,
+    ) -> anyhow::Result<ChannelSendMessageResult> {
+        self.backend
+            .send_outbound_intent(&self.config, intent)
             .await
     }
 
@@ -494,6 +525,21 @@ mod tests {
                 raw: Some(serde_json::json!({
                     "channel": channel,
                     "message": message,
+                })),
+                ..Default::default()
+            })
+        }
+
+        async fn send_outbound_intent(
+            &self,
+            _config: &ChannelsConfig,
+            intent: ChannelOutboundIntent,
+        ) -> anyhow::Result<ChannelSendMessageResult> {
+            Ok(ChannelSendMessageResult {
+                raw: Some(serde_json::json!({
+                    "channel": intent.channel_id,
+                    "idempotencyKey": intent.idempotency_key,
+                    "message": legacy_message_value_from_outbound_intent(&intent),
                 })),
                 ..Default::default()
             })
@@ -834,6 +880,13 @@ mod tests {
         assert_eq!(raw["channel"], "telegram");
         assert_eq!(raw["message"]["text"], "hello");
         assert_eq!(raw["message"]["photoUrl"], "https://example.test/a.png");
+        assert_eq!(raw["message"]["idempotencyKey"], raw["idempotencyKey"]);
+        assert!(
+            raw["idempotencyKey"]
+                .as_str()
+                .expect("idempotency key")
+                .starts_with("legacy-send:telegram:")
+        );
     }
 
     #[tokio::test]

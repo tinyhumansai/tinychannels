@@ -297,3 +297,63 @@ fn outbound_intent_carries_idempotency_key() {
     };
     assert_eq!(intent.idempotency_key, "idem-1");
 }
+
+#[test]
+fn legacy_message_intent_derives_stable_idempotency_key() {
+    let left = outbound_intent_from_legacy_message(
+        "telegram",
+        json!({
+            "text": "hello",
+            "threadId": "topic-1",
+            "replyToMessageId": "msg-1",
+            "buttons": [{"text": "Approve", "value": "yes"}],
+        }),
+    );
+    let right = outbound_intent_from_legacy_message(
+        "telegram",
+        json!({
+            "replyToMessageId": "msg-1",
+            "buttons": [{"value": "yes", "text": "Approve"}],
+            "threadId": "topic-1",
+            "text": "hello",
+        }),
+    );
+
+    assert_eq!(left.idempotency_key, right.idempotency_key);
+    assert!(left.idempotency_key.starts_with("legacy-send:telegram:"));
+    assert_eq!(left.channel_id, "telegram");
+    assert_eq!(left.conversation_id, "telegram");
+    assert_eq!(left.reply_to_id.as_deref(), Some("msg-1"));
+    assert_eq!(left.thread_id.as_deref(), Some("topic-1"));
+}
+
+#[test]
+fn legacy_message_intent_preserves_explicit_idempotency_key() {
+    let intent = outbound_intent_from_legacy_message(
+        "discord",
+        json!({
+            "idempotencyKey": "caller-key",
+            "recipient": "channel-1",
+            "text": "hello",
+        }),
+    );
+
+    assert_eq!(intent.idempotency_key, "caller-key");
+    assert_eq!(intent.conversation_id, "channel-1");
+}
+
+#[test]
+fn legacy_message_payload_adds_idempotency_without_dropping_rich_fields() {
+    let intent = outbound_intent_from_legacy_message(
+        "telegram",
+        json!({
+            "text": "hello",
+            "photoUrl": "https://example.test/a.png",
+        }),
+    );
+
+    let payload = legacy_message_value_from_outbound_intent(&intent);
+    assert_eq!(payload["text"], "hello");
+    assert_eq!(payload["photoUrl"], "https://example.test/a.png");
+    assert_eq!(payload["idempotencyKey"], intent.idempotency_key);
+}

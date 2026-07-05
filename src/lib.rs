@@ -21,6 +21,10 @@ pub mod text;
 pub mod traits;
 
 pub use backend::{ChannelBackend, ChannelManager};
+pub use channel::{
+    ChannelOutboundIntent, DeliveryDurability, OutboundPayload,
+    legacy_message_value_from_outbound_intent, outbound_intent_from_legacy_message,
+};
 pub use config::ChannelsConfig;
 pub use controllers::{ChannelAuthMode, ChannelDefinition};
 pub use error::{Result, TinyChannelsError};

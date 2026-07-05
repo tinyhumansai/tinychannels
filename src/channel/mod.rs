@@ -25,7 +25,10 @@ pub use envelope::{
     MediaReference, MentionGate, SenderDmDecision,
 };
 pub use error::{ChannelSendError, SendErrorKind, classify_send_error, is_chat_level_not_found};
-pub use intent::{ChannelOutboundIntent, DeliveryDurability, OutboundPayload};
+pub use intent::{
+    ChannelOutboundIntent, DeliveryDurability, OutboundPayload,
+    legacy_message_value_from_outbound_intent, outbound_intent_from_legacy_message,
+};
 pub use receipt::{
     MessageReceipt, MessageReceiptPart, MessageReceiptPartKind, MessageReceiptSourceResult,
     create_message_receipt_from_outbound_results, list_message_receipt_platform_ids,
