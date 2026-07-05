@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 135 default unit tests, or 137 with `--all-features`. Phase
+clean) and passes 142 default unit tests, or 144 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -52,12 +52,12 @@ transport loop, feature-gated WebSocket dialer, and reconnect supervisor for
 descriptor, inbound, outbound result, passthrough-forward, interrupt, idle, and
 buffered ACK flows.
 OpenHuman now depends on the crate through a path dependency and has adopted
-the shared traits, controller metadata/types, config structs, runtime helpers,
-text chunker, and `ChannelBackend` implementation. The existing channel
-controller entry points now dispatch through `ChannelManager` where they cross
-the crate boundary, including raw-payload send and disconnect paths that
-preserve OpenHuman's legacy top-level JSON/log envelopes. Provider wire
-extraction, relay runtime adoption, and deeper envelope/session migration
+the shared traits, controller metadata/types, controller schema catalog, config
+structs, runtime helpers, text chunker, and `ChannelBackend` implementation. The
+existing channel controller entry points now dispatch through `ChannelManager`
+where they cross the crate boundary, including raw-payload send and disconnect
+paths that preserve OpenHuman's legacy top-level JSON/log envelopes. Provider
+wire extraction, relay runtime adoption, and deeper envelope/session migration
 remain pending:
 
 | Surface | Status |
@@ -65,6 +65,7 @@ remain pending:
 | `Channel` / `ChannelMessage` / `SendMessage` (`src/traits.rs`) | Ported, legacy shape |
 | Provider config structs (`src/config.rs`, 16 providers) | Ported |
 | Static definitions + auth modes (`src/controllers/definitions.rs`, 8 channels) | Ported |
+| Controller schema catalog (`src/controllers/schemas.rs`) | Ported |
 | Controller response types (`src/controllers/types.rs`) | Ported |
 | `ChannelBackend` + `ChannelManager` (`src/backend.rs`) | New seam; OpenHuman implementation landed |
 | Runtime helpers (`src/context.rs`, `src/routes.rs`, `src/runtime.rs`) | Ported |
@@ -284,7 +285,9 @@ needs approval/voice/pairing/memory traits).
 
 ### Migrate from openhuman-4 (surfaces already ported)
 
-- `channels/controllers/schemas_tests.rs` (33 tests) — not yet mirrored here.
+- `channels/controllers/schemas_tests.rs` — portable schema-catalog assertions
+  are mirrored here; OpenHuman keeps handler parity, adapter conversion, params,
+  and legacy envelope helper tests.
 - The type-shape assertions from `channels/controllers/ops_tests.rs` (47) —
   run them against a mock `ChannelBackend`; leave the REST-wiring assertions
   in openhuman-4.
