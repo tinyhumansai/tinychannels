@@ -30,8 +30,8 @@ pub use transport::{
 };
 #[cfg(feature = "relay-websocket")]
 pub use websocket::{
-    WebSocketRelayConfig, WebSocketRelayIo, connect_websocket_relay_io, websocket_dial_url,
-    websocket_upgrade_authorization,
+    WebSocketRelayConfig, WebSocketRelayDialer, WebSocketRelayIo, connect_websocket_relay_io,
+    websocket_dial_url, websocket_upgrade_authorization,
 };
 
 #[cfg(test)]

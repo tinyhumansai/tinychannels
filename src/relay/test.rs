@@ -710,3 +710,23 @@ fn websocket_upgrade_authorization_uses_relay_hmac_token() {
         Some("gw-1".into())
     );
 }
+
+#[cfg(feature = "relay-websocket")]
+#[test]
+fn websocket_config_projects_from_relay_runtime_config() {
+    let config = crate::config::RelayRuntimeConfig {
+        url: "https://connector.example".into(),
+        gateway_id: Some("gw-1".into()),
+        upgrade_secret: Some(SECRET.into()),
+        upgrade_ttl_seconds: 123,
+        ..Default::default()
+    };
+
+    let websocket = crate::relay::WebSocketRelayConfig::from(&config);
+
+    assert_eq!(websocket.url, "https://connector.example");
+    assert_eq!(websocket.gateway_id.as_deref(), Some("gw-1"));
+    assert_eq!(websocket.upgrade_secret.as_deref(), Some(SECRET));
+    assert_eq!(websocket.upgrade_ttl_seconds, 123);
+    let _dialer = crate::relay::WebSocketRelayDialer::new(websocket);
+}

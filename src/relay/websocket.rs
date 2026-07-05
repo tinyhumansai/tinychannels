@@ -9,6 +9,7 @@ use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
@@ -29,6 +30,17 @@ pub struct WebSocketRelayConfig {
     pub upgrade_ttl_seconds: i64,
 }
 
+impl From<&crate::config::RelayRuntimeConfig> for WebSocketRelayConfig {
+    fn from(config: &crate::config::RelayRuntimeConfig) -> Self {
+        Self {
+            url: config.url.clone(),
+            gateway_id: config.gateway_id.clone(),
+            upgrade_secret: config.upgrade_secret.clone(),
+            upgrade_ttl_seconds: config.upgrade_ttl_seconds,
+        }
+    }
+}
+
 impl WebSocketRelayConfig {
     pub fn new(url: impl Into<String>) -> Self {
         Self {
@@ -36,6 +48,25 @@ impl WebSocketRelayConfig {
             upgrade_ttl_seconds: DEFAULT_UPGRADE_TTL_SECONDS,
             ..Default::default()
         }
+    }
+}
+
+/// Dialer for reconnect supervisors that use WebSocket relay transport.
+#[derive(Debug, Clone)]
+pub struct WebSocketRelayDialer {
+    config: WebSocketRelayConfig,
+}
+
+impl WebSocketRelayDialer {
+    pub fn new(config: WebSocketRelayConfig) -> Self {
+        Self { config }
+    }
+}
+
+#[async_trait]
+impl crate::relay::RelayFrameDialer for WebSocketRelayDialer {
+    async fn dial(&self) -> Result<Arc<dyn RelayFrameIo>, RelayTransportError> {
+        Ok(Arc::new(connect_websocket_relay_io(&self.config).await?))
     }
 }
 

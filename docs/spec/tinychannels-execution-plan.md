@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 168 default unit tests, or 170 with `--all-features`. Phase
+clean) and passes 168 default unit tests, or 171 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -48,9 +48,9 @@ delivery, and `src/relay/` ports Hermes' `CapabilityDescriptor`, projection
 defaults, sorted compact JSON, WS-upgrade HMAC token, delivery signature, replay
 window, multi-secret verification with byte-exact connector vectors, typed
 gateway/connector relay frame contracts, the request/response relay frame
-transport loop, feature-gated WebSocket dialer, and reconnect supervisor for
-descriptor, inbound, outbound result, passthrough-forward, interrupt, idle, and
-buffered ACK flows.
+transport loop, feature-gated WebSocket I/O plus reconnect dialer, and
+reconnect supervisor for descriptor, inbound, outbound result,
+passthrough-forward, interrupt, idle, and buffered ACK flows.
 OpenHuman now depends on the crate through a path dependency and has adopted
 the shared traits, controller metadata/types, controller schema catalog,
 credential helpers, config structs, runtime helpers, text chunker, and

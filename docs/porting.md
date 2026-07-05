@@ -25,8 +25,8 @@ that can compile independently from the OpenHuman application crate.
 - Relay frame transport loop for handshake readiness, outbound result
   correlation, authenticated inbound dispatch, passthrough dispatch, interrupt
   dispatch, idle ACKs, and buffered delivery ACKs.
-- Feature-gated WebSocket relay dialer with Hermes URL normalization,
-  newline-delimited JSON I/O, and upgrade bearer auth.
+- Feature-gated WebSocket relay I/O with Hermes URL normalization,
+  newline-delimited JSON I/O, upgrade bearer auth, and reconnect dialer support.
 - Reconnect supervisor that redials through a host-provided dialer, swaps the
   active frame I/O, re-sends `hello`, and waits for a fresh descriptor.
 - Migrated tests for the surfaces above.
