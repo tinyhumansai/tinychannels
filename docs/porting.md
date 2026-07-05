@@ -72,8 +72,9 @@ the shared traits, controller metadata/types, config structs, runtime helpers,
 text chunker, send idempotency bridge, relay runtime config shape, and legacy
 inbound envelope projection. OpenHuman has a relay inbound handler seam for
 authenticated envelope frames and starts the WebSocket relay runtime for
-complete relay config. Provider wire adapters, outbound relay usage, and full
-session-key adoption are still pending.
+complete relay config. TinyChannels now owns backend-agnostic default-channel
+validation before delegating persistence to the host backend. Provider wire
+adapters, outbound relay usage, and full session-key adoption are still pending.
 
 The phase-by-phase implementation plan, known-bug list, and test-migration
 plan live in

@@ -388,8 +388,9 @@ impl<B: ChannelBackend> ChannelManager<B> {
     }
 
     pub async fn set_default_channel(&self, channel: &str) -> anyhow::Result<()> {
+        let canonical = canonical_default_channel(channel)?;
         self.backend
-            .set_default_channel(&self.config, channel)
+            .set_default_channel(&self.config, &canonical)
             .await
     }
 
@@ -410,6 +411,17 @@ fn normalize_connect_credentials(channel: &str, credentials: Value) -> anyhow::R
     Ok(serde_json::to_value(config)?)
 }
 
+fn canonical_default_channel(channel: &str) -> anyhow::Result<String> {
+    let canonical = channel.trim().to_ascii_lowercase();
+    if canonical.is_empty() {
+        return Err(anyhow::anyhow!("channel must not be empty"));
+    }
+    if canonical != "web" && crate::controllers::find_channel_definition(&canonical).is_none() {
+        return Err(anyhow::anyhow!("unknown channel: {channel}"));
+    }
+    Ok(canonical)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -420,6 +432,7 @@ mod tests {
     struct RecordingBackend {
         calls: Mutex<Vec<String>>,
         credentials: Mutex<Vec<Value>>,
+        default_channels: Mutex<Vec<String>>,
     }
 
     #[async_trait]
@@ -675,6 +688,18 @@ mod tests {
                 missing_permissions: Vec::new(),
                 raw: None,
             })
+        }
+
+        async fn set_default_channel(
+            &self,
+            _config: &ChannelsConfig,
+            channel: &str,
+        ) -> anyhow::Result<()> {
+            self.default_channels
+                .lock()
+                .unwrap()
+                .push(channel.to_string());
+            Ok(())
         }
     }
 
@@ -962,6 +987,34 @@ mod tests {
                 .await
                 .unwrap()
                 .can_send_messages
+        );
+    }
+
+    #[tokio::test]
+    async fn set_default_channel_validates_and_canonicalizes_before_delegating() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+
+        manager
+            .set_default_channel(" Discord ")
+            .await
+            .expect("known channel");
+        manager
+            .set_default_channel("WEB")
+            .await
+            .expect("web pseudo-channel");
+
+        assert_eq!(
+            manager.backend.default_channels.lock().unwrap().as_slice(),
+            ["discord", "web"]
+        );
+
+        let err = manager.set_default_channel("myspace").await.unwrap_err();
+        assert_eq!(err.to_string(), "unknown channel: myspace");
+        let err = manager.set_default_channel("   ").await.unwrap_err();
+        assert_eq!(err.to_string(), "channel must not be empty");
+        assert_eq!(
+            manager.backend.default_channels.lock().unwrap().as_slice(),
+            ["discord", "web"]
         );
     }
 }
