@@ -96,6 +96,47 @@ fn has_listening_integrations_ignores_push_webhook() {
 }
 
 #[test]
+fn has_listening_integrations_ignores_relay_until_runtime_is_adopted() {
+    let cfg = ChannelsConfig {
+        relay: Some(RelayRuntimeConfig {
+            url: "wss://relay.example.test".into(),
+            identities: vec![RelayRuntimeIdentityConfig {
+                platform: "telegram".into(),
+                bot_id: "bot-1".into(),
+            }],
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    assert!(!cfg.has_listening_integrations());
+}
+
+#[test]
+fn relay_runtime_config_deserializes_with_defaults_and_identities() {
+    let toml = r#"
+        url = "https://relay.example.test"
+        gateway_id = "gateway-1"
+        upgrade_secret = "secret"
+
+        [[identities]]
+        platform = "telegram"
+        bot_id = "bot-1"
+    "#;
+
+    let cfg: RelayRuntimeConfig = toml::from_str(toml).unwrap();
+    let identities = cfg.relay_identities();
+
+    assert_eq!(cfg.url, "https://relay.example.test");
+    assert_eq!(cfg.gateway_id.as_deref(), Some("gateway-1"));
+    assert_eq!(cfg.upgrade_ttl_seconds, 300);
+    assert_eq!(cfg.timeouts.handshake_ms, 30_000);
+    assert_eq!(cfg.reconnect.backoff_ms, 1_000);
+    assert_eq!(identities.len(), 1);
+    assert_eq!(identities[0].platform, "telegram");
+    assert_eq!(identities[0].bot_id, "bot-1");
+}
+
+#[test]
 fn stream_mode_default_is_off() {
     assert_eq!(StreamMode::default(), StreamMode::Off);
 }

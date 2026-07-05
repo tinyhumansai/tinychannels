@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 162 default unit tests, or 164 with `--all-features`. Phase
+clean) and passes 164 default unit tests, or 166 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -60,8 +60,10 @@ including raw-payload send and disconnect paths that preserve OpenHuman's
 legacy top-level JSON/log envelopes; manager sends, direct channel-bus backend
 sends, and legacy `Channel::send` callers now build a `ChannelOutboundIntent`
 and inject a deterministic idempotency key before delegating to the legacy
-message API/provider trait. Provider wire extraction, relay runtime adoption,
-and deeper envelope/session migration remain pending:
+message API/provider trait. The portable relay runtime config surface is
+staged in `ChannelsConfig`, but OpenHuman relay startup/adoption remains
+pending. Provider wire extraction and deeper envelope/session migration also
+remain pending:
 
 | Surface | Status |
 | --- | --- |
@@ -79,7 +81,7 @@ and deeper envelope/session migration remain pending:
 | Adapter / harness bridge | Phase 3 landed in `src/channel/adapter.rs` and `src/harness/` |
 | Durable delivery queue | Phase 4 landed in `src/delivery/` with backoff/permanent-error/reconciliation tests |
 | Generic local adapter | Phase 5 `LocalChannelAdapter` landed in `src/adapters/` |
-| Relay contract | Phase 5 descriptor + HMAC auth + typed frame contract + frame transport loop + feature-gated WebSocket dialer + reconnect supervisor landed |
+| Relay contract | Phase 5 descriptor + HMAC auth + typed frame contract + frame transport loop + feature-gated WebSocket dialer + reconnect supervisor landed; runtime config staged |
 | `tests/` integration dir | Empty |
 
 openhuman-4 now depends on this crate and re-exports the adopted surfaces from

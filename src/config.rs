@@ -1,5 +1,8 @@
 //! Channel provider configuration for portable OpenHuman channel surfaces.
 
+use crate::relay::{
+    DEFAULT_UPGRADE_TTL_SECONDS, RelayIdentity, RelayReconnectPolicy, RelayTransportTimeouts,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +26,8 @@ pub struct ChannelsConfig {
     pub dingtalk: Option<DingTalkConfig>,
     pub qq: Option<QQConfig>,
     pub yuanbao: Option<YuanbaoConfig>,
+    #[serde(default)]
+    pub relay: Option<RelayRuntimeConfig>,
     #[serde(default = "default_channel_message_timeout_secs")]
     pub message_timeout_secs: u64,
     /// The user's preferred *external* channel for proactive messages
@@ -50,6 +55,10 @@ impl ChannelsConfig {
     /// `webhook` is intentionally omitted: it is push-based and owned by the
     /// host HTTP server, so enabling it should not spawn a polling/listener
     /// worker from the channel runtime.
+    ///
+    /// `relay` is also omitted until hosts wire a concrete relay startup path:
+    /// deserializing relay config must not make a current OpenHuman runtime
+    /// boot and then exit with no local channel listeners.
     pub fn has_listening_integrations(&self) -> bool {
         self.telegram.is_some()
             || self.discord.is_some()
@@ -89,10 +98,60 @@ impl Default for ChannelsConfig {
             dingtalk: None,
             qq: None,
             yuanbao: None,
+            relay: None,
             message_timeout_secs: default_channel_message_timeout_secs(),
             active_channel: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct RelayRuntimeConfig {
+    pub url: String,
+    pub gateway_id: Option<String>,
+    pub upgrade_secret: Option<String>,
+    #[serde(default = "default_relay_upgrade_ttl_seconds")]
+    pub upgrade_ttl_seconds: i64,
+    pub identities: Vec<RelayRuntimeIdentityConfig>,
+    pub timeouts: RelayTransportTimeouts,
+    pub reconnect: RelayReconnectPolicy,
+}
+
+impl Default for RelayRuntimeConfig {
+    fn default() -> Self {
+        Self {
+            url: String::new(),
+            gateway_id: None,
+            upgrade_secret: None,
+            upgrade_ttl_seconds: default_relay_upgrade_ttl_seconds(),
+            identities: Vec::new(),
+            timeouts: RelayTransportTimeouts::default(),
+            reconnect: RelayReconnectPolicy::default(),
+        }
+    }
+}
+
+impl RelayRuntimeConfig {
+    pub fn relay_identities(&self) -> Vec<RelayIdentity> {
+        self.identities
+            .iter()
+            .map(|identity| RelayIdentity {
+                platform: identity.platform.clone(),
+                bot_id: identity.bot_id.clone(),
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RelayRuntimeIdentityConfig {
+    pub platform: String,
+    pub bot_id: String,
+}
+
+fn default_relay_upgrade_ttl_seconds() -> i64 {
+    DEFAULT_UPGRADE_TTL_SECONDS
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, JsonSchema)]
