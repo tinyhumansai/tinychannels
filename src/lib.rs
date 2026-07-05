@@ -5,6 +5,11 @@
 //! runtime helpers, and the backend boundary that OpenHuman implements for
 //! channel side effects.
 
+// Re-export the WebSocket transport crate so downstream consumers (and their
+// tests that exercise provider WS seams) can construct version-matched
+// `tungstenite` messages without pinning the same version themselves.
+pub use tokio_tungstenite;
+
 pub mod adapters;
 pub mod backend;
 pub mod channel;
@@ -31,5 +36,9 @@ pub use channel::{
 pub use config::ChannelsConfig;
 pub use controllers::{ChannelAuthMode, ChannelDefinition};
 pub use error::{Result, TinyChannelsError};
-pub use providers::{SignalChannel, SlackChannel, WhatsAppChannel};
+pub use providers::{
+    DingTalkChannel, DiscordChannel, EmailChannel, IMessageChannel, IrcChannel, IrcChannelConfig,
+    LarkChannel, LinqChannel, MattermostChannel, QQChannel, SignalChannel, SlackChannel,
+    WhatsAppChannel, YuanbaoChannel,
+};
 pub use traits::{Channel, ChannelMessage, ChannelSendExt, SendMessage};
