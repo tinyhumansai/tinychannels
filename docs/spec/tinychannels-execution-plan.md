@@ -313,10 +313,10 @@ needs approval/voice/pairing/memory traits).
   against a mock `ChannelBackend`; OpenHuman keeps the app-side persistence/REST
   wiring assertions.
 - Already mirrored (verify parity, then let openhuman-4 delete its copies once
-  it depends on the crate): config schema, traits, context helpers,
-  `compute_max_in_flight_messages`, the `tests/memory.rs` and
-  `tests/runtime_dispatch.rs` key tests. The duplicate definitions suite is
-  deleted from OpenHuman.
+  it depends on the crate): traits, context helpers, the `tests/memory.rs` and
+  `tests/runtime_dispatch.rs` key tests. The duplicate definitions,
+  config-schema, and `compute_max_in_flight_messages` suites are deleted from
+  OpenHuman.
 
 ### New fixtures from upstream (as `tests/` integration suites)
 
