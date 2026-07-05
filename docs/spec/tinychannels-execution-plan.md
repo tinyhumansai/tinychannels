@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 120 unit tests. Phase 0 hygiene has landed: sandbox-only
+clean) and passes 125 unit tests. Phase 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
 Yuanbao connect credentials are normalized through `YuanbaoConfig`, controller
@@ -45,11 +45,14 @@ are covered by unit tests. Phase 5's first generic adapter and relay contract
 slice has landed: `LocalChannelAdapter` covers host-owned local/API/webhook
 delivery, and `src/relay/` ports Hermes' `CapabilityDescriptor`, projection
 defaults, sorted compact JSON, WS-upgrade HMAC token, delivery signature, replay
-window, and multi-secret verification with byte-exact connector vectors.
+window, multi-secret verification with byte-exact connector vectors, and typed
+gateway/connector relay frame contracts for descriptor, inbound, outbound
+result, passthrough-forward, interrupt, idle, and buffered ACK flows.
 OpenHuman now depends on the crate through a path dependency and has adopted
 the shared traits, controller metadata/types, config structs, runtime helpers,
 text chunker, and `ChannelBackend` implementation. Provider wire extraction,
-relay transport frames, and deeper envelope/session migration remain pending:
+the concrete relay WebSocket transport loop, and deeper envelope/session
+migration remain pending:
 
 | Surface | Status |
 | --- | --- |
@@ -65,7 +68,7 @@ relay transport frames, and deeper envelope/session migration remain pending:
 | Adapter / harness bridge | Phase 3 landed in `src/channel/adapter.rs` and `src/harness/` |
 | Durable delivery queue | Phase 4 landed in `src/delivery/` with backoff/permanent-error/reconciliation tests |
 | Generic local adapter | Phase 5 `LocalChannelAdapter` landed in `src/adapters/` |
-| Relay contract | Phase 5 descriptor + HMAC auth landed; relay transport remains pending |
+| Relay contract | Phase 5 descriptor + HMAC auth + typed frame contract landed; concrete relay transport remains pending |
 | `tests/` integration dir | Empty |
 
 openhuman-4 now depends on this crate and re-exports the adopted surfaces from
@@ -230,8 +233,9 @@ Create the spec's modules with these verified upstream shapes:
 
 ### Phase 5 — Generic adapters + relay contract
 
-- **Partially landed locally:** `LocalChannelAdapter` plus relay descriptor and
-  HMAC auth primitives are implemented and tested against Hermes vectors.
+- **Partially landed locally:** `LocalChannelAdapter` plus relay descriptor,
+  HMAC auth primitives, and directional relay frame contracts are implemented
+  and tested against Hermes vectors.
 - Local/API/webhook adapter first (unblocks OpenHuman internal surfaces).
 - Relay: port `CapabilityDescriptor` (contract_version 1, frozen per
   connection, unknown-keys-ignored/additive-only, `max_message_length == 0 →
@@ -241,12 +245,15 @@ Create the spec's modules with these verified upstream shapes:
   multi-secret rotation, constant-time compare). **Wire bytes must match the
   TypeScript connector** — port Hermes `tests/gateway/relay/test_auth.py` and
   `test_descriptor.py` as byte-exact fixtures before writing the transport.
-- Relay transport (frames: `descriptor, inbound(+bufferId ack), going_idle_ack,
-  outbound_result, interrupt_inbound, passthrough_forward` / `outbound,
-  chat_info, interrupt, going_idle, inbound_ack`) behind a feature flag;
-  upstream marks the contract EXPERIMENTAL. Delegated authorization: honor
-  `delivered_via_upstream_relay` only when stamped by the authenticated
-  transport, keyed off the flag, never the platform value.
+- Concrete relay transport loop behind a feature flag. The typed frame contract
+  already covers connector → gateway frames `descriptor`,
+  `inbound(+bufferId ack)`, `going_idle_ack`, `outbound_result`,
+  `interrupt_inbound`, and `passthrough_forward`, plus gateway → connector
+  frames `hello`, `outbound`, `interrupt`, `going_idle`, and `inbound_ack`.
+  Follow-up and chat-info ride the normal `outbound` frame. Upstream marks the
+  contract EXPERIMENTAL. Delegated authorization: honor relay trust only from
+  the authenticated transport marker; strip any wire-supplied
+  `delivered_via_upstream_relay` flag from inbound payloads.
 
 ### Phase 6 — Provider adapters
 

@@ -20,6 +20,8 @@ that can compile independently from the OpenHuman application crate.
 - Durable delivery queue policy/state machine behind a host-owned storage
   trait.
 - Relay descriptor and HMAC auth primitives with Hermes connector vector tests.
+- Typed relay frame contracts for handshake, inbound delivery, outbound result,
+  passthrough-forward, interrupt, idle, and buffered ACK flows.
 - Migrated tests for the surfaces above.
 
 ## Backend Boundary
@@ -60,8 +62,8 @@ Per the 2026-07-04 audit, provider portability falls into a ladder:
 The spec's redesigned local core through Phase 5 is implemented in this crate.
 OpenHuman now depends on this crate through a path dependency and has adopted
 the shared traits, controller metadata/types, config structs, runtime helpers,
-and text chunker. The relay transport frames and provider wire adapters are
-still pending.
+and text chunker. The concrete relay WebSocket transport loop and provider wire
+adapters are still pending.
 
 The phase-by-phase implementation plan, known-bug list, and test-migration
 plan live in

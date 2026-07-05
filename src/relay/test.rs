@@ -1,8 +1,10 @@
 use crate::relay::{
-    CONTRACT_VERSION, CapabilityDescriptor, DELIVERY_SIG_HEADER, DELIVERY_TS_HEADER,
-    RelayDescriptorOptions, RelayPlatformEntry, delivery_payload, make_token_at,
-    make_upgrade_token_at, sign, verify_delivery_signature_at, verify_signature, verify_token_at,
+    CONTRACT_VERSION, CapabilityDescriptor, ConnectorToGatewayFrame, DELIVERY_SIG_HEADER,
+    DELIVERY_TS_HEADER, GatewayToConnectorFrame, PassthroughForward, RelayDescriptorOptions,
+    RelayPlatformEntry, delivery_payload, make_token_at, make_upgrade_token_at, sign,
+    verify_delivery_signature_at, verify_signature, verify_token_at,
 };
+use serde_json::json;
 
 const SECRET: &str = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
 const CONNECTOR_TOKEN: &str = "Z3ctaW5zdGFuY2UtMTowOjM3YWE3YjE0NWU4NzY0ZDQwM2JhOWM2MzlmMjMwZGQ2M2RlOGVkOTliODhmZWQzNmFhMDI2MjVhOGE3ZTM1NjQ";
@@ -216,4 +218,148 @@ fn frozen_connector_vectors_match_hermes_tests() {
         300,
         CONNECTOR_TS
     ));
+}
+
+#[test]
+fn gateway_frames_match_connector_wire_casing() {
+    let hello = GatewayToConnectorFrame::Hello {
+        platform: "discord".into(),
+        bot_id: "appShared".into(),
+    };
+    assert_eq!(
+        serde_json::to_value(&hello).expect("hello json"),
+        json!({"type":"hello","platform":"discord","botId":"appShared"})
+    );
+
+    let outbound = GatewayToConnectorFrame::Outbound {
+        request_id: "req-1".into(),
+        action: json!({"op":"send","text":"hi"}),
+        platform: Some("discord".into()),
+        bot_id: Some("appShared".into()),
+    };
+    assert_eq!(
+        serde_json::to_value(&outbound).expect("outbound json"),
+        json!({
+            "type":"outbound",
+            "requestId":"req-1",
+            "action":{"op":"send","text":"hi"},
+            "platform":"discord",
+            "botId":"appShared"
+        })
+    );
+
+    let ack = GatewayToConnectorFrame::InboundAck {
+        buffer_id: "buf-1".into(),
+    };
+    assert_eq!(
+        ack.to_json().expect("ack json"),
+        r#"{"type":"inbound_ack","bufferId":"buf-1"}"#
+    );
+}
+
+#[test]
+fn connector_frames_roundtrip_and_build_buffer_ack() {
+    let raw = r#"{"type":"outbound_result","requestId":"req-1","result":{"success":true,"message_id":"srv-send"}}"#;
+    let frame = ConnectorToGatewayFrame::from_json(raw).expect("outbound result");
+    assert_eq!(
+        frame,
+        ConnectorToGatewayFrame::OutboundResult {
+            request_id: "req-1".into(),
+            result: json!({"success":true,"message_id":"srv-send"}),
+        }
+    );
+    assert_eq!(
+        frame.to_json().expect("outbound result json"),
+        r#"{"type":"outbound_result","requestId":"req-1","result":{"message_id":"srv-send","success":true}}"#
+    );
+
+    let inbound = ConnectorToGatewayFrame::Inbound {
+        event: json!({"text":"hello"}),
+        buffer_id: Some("buf-1".into()),
+    };
+    assert_eq!(
+        inbound.inbound_ack(),
+        Some(GatewayToConnectorFrame::InboundAck {
+            buffer_id: "buf-1".into()
+        })
+    );
+}
+
+#[test]
+fn authenticated_inbound_event_strips_forged_wire_trust() {
+    let frame = ConnectorToGatewayFrame::Inbound {
+        event: json!({
+            "text":"hello",
+            "source":{
+                "platform":"discord",
+                "chat_id":"chan1",
+                "delivered_via_upstream_relay":true,
+                "deliveredViaUpstreamRelay":true
+            },
+            "access":{"deliveredViaUpstreamRelay":true}
+        }),
+        buffer_id: Some("buf-1".into()),
+    };
+
+    let inbound = frame
+        .authenticated_inbound_event()
+        .expect("authenticated inbound");
+    assert!(inbound.delivered_via_authenticated_relay);
+    assert_eq!(inbound.buffer_id.as_deref(), Some("buf-1"));
+    assert_eq!(
+        inbound.event,
+        json!({
+            "text":"hello",
+            "source":{"platform":"discord","chat_id":"chan1"},
+            "access":{}
+        })
+    );
+}
+
+#[test]
+fn passthrough_forward_decodes_body_and_tolerates_malformed_base64() {
+    let raw = concat!(
+        r#"{"platform":"discord","botId":"appShared","method":"POST","#,
+        r#""path":"/interactions/discord/appShared","#,
+        r#""headers":[["content-type","application/json"]],"bodyB64":"eyJ0eXBlIjoyfQ=="}"#
+    );
+    let forward: PassthroughForward = serde_json::from_str(raw).expect("passthrough");
+    assert_eq!(forward.platform, "discord");
+    assert_eq!(forward.bot_id, "appShared");
+    assert_eq!(
+        forward.headers,
+        vec![("content-type".into(), "application/json".into())]
+    );
+    assert_eq!(forward.body, br#"{"type":2}"#);
+    assert_eq!(
+        serde_json::to_value(&forward).expect("passthrough json")["bodyB64"],
+        json!("eyJ0eXBlIjoyfQ==")
+    );
+
+    let malformed: PassthroughForward =
+        serde_json::from_str(r#"{"platform":"x","bodyB64":"!!!not base64!!!"}"#)
+            .expect("malformed passthrough");
+    assert!(malformed.body.is_empty());
+}
+
+#[test]
+fn passthrough_forward_buffer_ack_uses_same_inbound_ack_frame() {
+    let frame = ConnectorToGatewayFrame::PassthroughForward {
+        forward: PassthroughForward {
+            platform: "discord".into(),
+            bot_id: "appShared".into(),
+            method: "POST".into(),
+            path: "/interactions".into(),
+            headers: vec![],
+            body: vec![],
+        },
+        buffer_id: Some("buf-passthrough".into()),
+    };
+
+    assert_eq!(
+        frame.inbound_ack(),
+        Some(GatewayToConnectorFrame::InboundAck {
+            buffer_id: "buf-passthrough".into()
+        })
+    );
 }
