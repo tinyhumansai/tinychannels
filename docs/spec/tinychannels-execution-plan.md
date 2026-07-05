@@ -54,8 +54,8 @@ buffered ACK flows.
 OpenHuman now depends on the crate through a path dependency and has adopted
 the shared traits, controller metadata/types, config structs, runtime helpers,
 text chunker, and `ChannelBackend` implementation. Provider wire extraction,
-the first manager-routed `status`/`test` controller paths, relay runtime
-adoption, and deeper envelope/session migration remain pending:
+the first manager-routed `list`/`describe`/`status`/`test` controller paths,
+relay runtime adoption, and deeper envelope/session migration remain pending:
 
 | Surface | Status |
 | --- | --- |
