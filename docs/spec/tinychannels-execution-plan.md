@@ -85,19 +85,23 @@ Carried-over logic bugs (present in both repos unless noted):
 2. **Resolved in Phase 1 core types:** new session keys include `scope_id` as a
    deliberate TinyChannels discriminator. OpenHuman still needs to thread scope
    facts into envelopes during integration.
-3. **`conversation_memory_key` uses `msg.id`** (`src/context.rs:70-72`), so
-   every message yields a distinct "conversation" key. openhuman-4 has tests
-   asserting this (`tests/memory.rs:conversation_memory_key_uses_message_id`),
-   so it may be intentional per-turn keying — confirm intent with the
-   OpenHuman side before changing, then either rename it (`turn_memory_key`)
-   or fix it to coalesce per conversation.
+3. **Deferred pending OpenHuman product decision:** `conversation_memory_key`
+   uses `msg.id`, so every message yields a distinct "conversation" key.
+   openhuman-4 has tests asserting this
+   (`tests/memory.rs:conversation_memory_key_uses_message_id`), so it may be
+   intentional per-turn keying. Do not change behavior in the crate until the
+   OpenHuman side decides whether to keep it and rename the helper
+   (`turn_memory_key`) or coalesce per conversation.
 4. **Resolved locally and adopted by OpenHuman:** portable chunking now
    supports UTF-16 code units, including the emoji case where character count
    passes but UTF-16 length exceeds the platform limit. OpenHuman Telegram and
    Discord splitting now call the crate chunker.
-5. **No outbound idempotency.** `SendMessage` has no idempotency key; a
-   retried send after a transport error double-posts. Phase 1's
-   `ChannelOutboundIntent.idempotency_key` addresses this.
+5. **Resolved in crate types, deferred in OpenHuman integration:** legacy
+   `SendMessage` has no idempotency key, so a retried send after a transport
+   error can double-post. Phase 1's `ChannelOutboundIntent.idempotency_key`
+   addresses this in the portable contract; OpenHuman adoption is deferred
+   until controller sends route through outbound intents instead of the legacy
+   `SendMessage` shape.
 6. **Resolved in Phase 0:** dead sandbox-only config (`SecurityConfig` /
    `SandboxConfig` / `AuditConfig` / `ResourceLimitsConfig` /
    `SandboxBackend`) was removed from the crate. `YuanbaoConfig` defaults,
@@ -116,12 +120,13 @@ Carried-over logic bugs (present in both repos unless noted):
 10. **Resolved in Phase 1:** `ChannelBackend` now returns typed send,
     reaction, thread, and Discord lookup results, and `ChannelManager` wraps
     reaction/thread/managed-link/Discord/default-channel operations.
-11. **Partially resolved in Phase 0:** the stale scaffold crate docs were
-    replaced, `TinyChannelsError` now derives `thiserror::Error`, and manager
-    sends are instrumented with `tracing` while skipping message payloads.
-    `src/context.rs` vs `src/runtime.rs` naming is still inverted (the runtime
-    helpers live in `context.rs`) — rename during Phase 1 while the public API
-    surface is still small.
+11. **Partially resolved in Phase 0; naming cleanup deferred:** the stale
+    scaffold crate docs were replaced, `TinyChannelsError` now derives
+    `thiserror::Error`, and manager sends are instrumented with `tracing` while
+    skipping message payloads.
+    `src/context.rs` vs `src/runtime.rs` naming is still inverted because
+    OpenHuman now re-exports these helpers from legacy paths; rename only as a
+    coordinated breaking API cleanup with matching OpenHuman re-export updates.
 
 ## Phased Plan
 
