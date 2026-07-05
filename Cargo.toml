@@ -12,7 +12,6 @@ categories = ["asynchronous", "api-bindings"]
 [features]
 default = []
 relay-websocket = [
-    "dep:futures-util",
     "dep:tokio-tungstenite",
     "tokio/net",
 ]
@@ -21,8 +20,9 @@ relay-websocket = [
 anyhow = "1"
 async-trait = "0.1"
 base64 = "0.22"
-futures-util = { version = "0.3", default-features = false, features = ["sink", "std"], optional = true }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 hmac = "0.12"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
 schemars = { version = "1", features = ["derive"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -31,6 +31,7 @@ thiserror = "2"
 tokio = { version = "1", default-features = false, features = ["macros", "rt", "sync", "time"] }
 tokio-tungstenite = { version = "0.29", default-features = false, features = ["connect", "rustls-tls-webpki-roots"], optional = true }
 tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tempfile = "3"
