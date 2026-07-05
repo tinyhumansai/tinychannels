@@ -82,12 +82,10 @@ fn length_chunking_prefers_newline_then_space_boundaries() {
         },
     );
     assert_eq!(
-        chunks,
-        vec![
-            "paragraph one line",
-            "paragraph two starts here and continues"
-        ]
+        chunks.join(""),
+        "paragraph one line\n\nparagraph two starts here and continues"
     );
+    assert_eq!(chunks[0].trim_end(), "paragraph one line");
 
     let chunks = chunk_text_with_options(
         "This is a message that should break nicely near a word boundary.",
@@ -100,9 +98,42 @@ fn length_chunking_prefers_newline_then_space_boundaries() {
     assert!(!chunks[0].ends_with("nic"));
     assert!(chunks.iter().all(|chunk| chunk.len() <= 30));
     assert_eq!(
-        chunks.join(" ").replace(char::is_whitespace, " "),
+        chunks.join(""),
         "This is a message that should break nicely near a word boundary."
     );
+}
+
+#[test]
+fn length_chunking_preserves_boundary_whitespace() {
+    let text = "  test ".repeat(120);
+    let chunks = chunk_text_with_options(
+        &text,
+        TextChunkOptions {
+            limit: 37,
+            indicators: false,
+            ..Default::default()
+        },
+    );
+    assert!(chunks.len() > 1);
+    assert!(chunks.iter().all(|chunk| chunk.len() <= 37));
+    assert_eq!(chunks.join(""), text);
+}
+
+#[test]
+fn plain_text_chunking_uses_full_limit_without_fence_reserve() {
+    let text = "a".repeat(41);
+    let chunks = chunk_text_with_options(
+        &text,
+        TextChunkOptions {
+            limit: 40,
+            indicators: false,
+            markdown: true,
+            ..Default::default()
+        },
+    );
+    assert_eq!(chunks.len(), 2);
+    assert_eq!(chunks[0].len(), 40);
+    assert_eq!(chunks[1].len(), 1);
 }
 
 #[test]
@@ -116,7 +147,7 @@ fn chunking_avoids_inline_code_span_when_possible() {
         },
     );
     assert_eq!(chunks[0], "prefix words");
-    assert!(chunks[1].starts_with("`inline code"));
+    assert!(chunks[1].trim_start().starts_with("`inline code"));
 }
 
 #[test]

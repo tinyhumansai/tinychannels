@@ -231,7 +231,7 @@ fn skip_blank_line(text: &str, mut idx: usize) -> usize {
 
 fn chunk_by_length(text: &str, options: TextChunkOptions) -> Vec<String> {
     let mut chunks = Vec::new();
-    let mut remaining = text.trim_start();
+    let mut remaining = text;
     let mut carry_lang: Option<String> = None;
 
     while !remaining.is_empty() {
@@ -239,17 +239,12 @@ fn chunk_by_length(text: &str, options: TextChunkOptions) -> Vec<String> {
             .as_ref()
             .map(|lang| format!("```{lang}\n"))
             .unwrap_or_default();
-        let close_cost = if options.markdown {
-            measure_text(FENCE_CLOSE, options.length_unit)
-        } else {
-            0
-        };
         let reserve = if options.indicators {
             CONTINUATION_RESERVE
         } else {
             0
         };
-        let used = measure_text(&prefix, options.length_unit) + close_cost + reserve;
+        let used = measure_text(&prefix, options.length_unit) + reserve;
         let body_budget = options.limit.saturating_sub(used).max(1);
 
         if measure_text(&prefix, options.length_unit) + measure_text(remaining, options.length_unit)
@@ -269,9 +264,31 @@ fn chunk_by_length(text: &str, options: TextChunkOptions) -> Vec<String> {
             split_at = prefix_slice.len();
         }
 
-        let chunk_body = remaining[..split_at].trim_end();
+        let mut chunk_body = &remaining[..split_at];
+        if options.markdown {
+            let (in_code, _) = fence_state(carry_lang.as_deref(), chunk_body);
+            let full_measure = measure_text(&prefix, options.length_unit)
+                + measure_text(chunk_body, options.length_unit)
+                + measure_text(FENCE_CLOSE, options.length_unit);
+            if in_code && full_measure > options.limit.saturating_sub(reserve) {
+                let close_budget = body_budget
+                    .saturating_sub(measure_text(FENCE_CLOSE, options.length_unit))
+                    .max(1);
+                let close_prefix =
+                    prefix_within_limit(remaining, close_budget, options.length_unit);
+                split_at = choose_split_index(close_prefix);
+                if split_at == 0 {
+                    split_at = close_prefix.len();
+                }
+                split_at = avoid_inline_code_split(close_prefix, split_at);
+                if split_at == 0 {
+                    split_at = close_prefix.len();
+                }
+                chunk_body = &remaining[..split_at];
+            }
+        }
         let mut full_chunk = format!("{prefix}{chunk_body}");
-        remaining = remaining[split_at..].trim_start();
+        remaining = &remaining[split_at..];
 
         if options.markdown {
             let (in_code, lang) = fence_state(carry_lang.as_deref(), chunk_body);
