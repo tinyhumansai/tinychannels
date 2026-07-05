@@ -597,3 +597,37 @@ async fn relay_transport_go_idle_waits_for_connector_ack() {
     io.push(ConnectorToGatewayFrame::GoingIdleAck).await;
     assert!(task.await.expect("task").expect("go idle"));
 }
+
+#[cfg(feature = "relay-websocket")]
+#[test]
+fn websocket_dial_url_matches_hermes_normalization() {
+    assert_eq!(
+        crate::relay::websocket_dial_url("https://connector.example"),
+        "wss://connector.example/relay"
+    );
+    assert_eq!(
+        crate::relay::websocket_dial_url("http://connector.example/"),
+        "ws://connector.example/relay"
+    );
+    assert_eq!(
+        crate::relay::websocket_dial_url("wss://connector.example/relay"),
+        "wss://connector.example/relay"
+    );
+}
+
+#[cfg(feature = "relay-websocket")]
+#[test]
+fn websocket_upgrade_authorization_uses_relay_hmac_token() {
+    let config = crate::relay::WebSocketRelayConfig {
+        url: "https://connector.example".into(),
+        gateway_id: Some("gw-1".into()),
+        upgrade_secret: Some(SECRET.into()),
+        upgrade_ttl_seconds: 300,
+    };
+    let header = crate::relay::websocket_upgrade_authorization(&config).expect("auth header");
+    let token = header.strip_prefix("Bearer ").expect("bearer token");
+    assert_eq!(
+        crate::relay::verify_token(token, &[SECRET]),
+        Some("gw-1".into())
+    );
+}

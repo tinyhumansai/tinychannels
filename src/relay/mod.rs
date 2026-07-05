@@ -4,6 +4,8 @@ pub mod auth;
 pub mod descriptor;
 pub mod frames;
 pub mod transport;
+#[cfg(feature = "relay-websocket")]
+pub mod websocket;
 
 pub use auth::{
     DEFAULT_MAX_SKEW_SECONDS, DEFAULT_UPGRADE_TTL_SECONDS, DELIVERY_SIG_HEADER, DELIVERY_TS_HEADER,
@@ -24,6 +26,11 @@ pub use frames::{
 pub use transport::{
     RelayFrameIo, RelayIdentity, RelayInboundHandler, RelayInterruptInboundHandler,
     RelayPassthroughHandler, RelayTransport, RelayTransportError, RelayTransportTimeouts,
+};
+#[cfg(feature = "relay-websocket")]
+pub use websocket::{
+    WebSocketRelayConfig, WebSocketRelayIo, connect_websocket_relay_io, websocket_dial_url,
+    websocket_upgrade_authorization,
 };
 
 #[cfg(test)]

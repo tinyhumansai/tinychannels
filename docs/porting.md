@@ -25,6 +25,8 @@ that can compile independently from the OpenHuman application crate.
 - Relay frame transport loop for handshake readiness, outbound result
   correlation, authenticated inbound dispatch, passthrough dispatch, interrupt
   dispatch, idle ACKs, and buffered delivery ACKs.
+- Feature-gated WebSocket relay dialer with Hermes URL normalization,
+  newline-delimited JSON I/O, and upgrade bearer auth.
 - Migrated tests for the surfaces above.
 
 ## Backend Boundary
@@ -65,8 +67,8 @@ Per the 2026-07-04 audit, provider portability falls into a ladder:
 The spec's redesigned local core through Phase 5 is implemented in this crate.
 OpenHuman now depends on this crate through a path dependency and has adopted
 the shared traits, controller metadata/types, config structs, runtime helpers,
-and text chunker. The relay WebSocket dialer/reconnect wrapper and provider
-wire adapters are still pending.
+and text chunker. The relay reconnect wrapper and provider wire adapters are
+still pending.
 
 The phase-by-phase implementation plan, known-bug list, and test-migration
 plan live in
