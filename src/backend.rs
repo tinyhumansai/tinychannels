@@ -394,7 +394,7 @@ mod tests {
             &self,
             _config: &ChannelsConfig,
             channel: &str,
-            _auth_mode: ChannelAuthMode,
+            auth_mode: ChannelAuthMode,
             credentials: Value,
         ) -> anyhow::Result<ChannelConnectionResult> {
             self.calls
@@ -402,6 +402,14 @@ mod tests {
                 .unwrap()
                 .push(format!("connect:{channel}"));
             self.credentials.lock().unwrap().push(credentials);
+            if auth_mode == ChannelAuthMode::OAuth {
+                return Ok(ChannelConnectionResult {
+                    status: "pending_auth".into(),
+                    restart_required: false,
+                    auth_action: Some(format!("{channel}_oauth")),
+                    message: None,
+                });
+            }
             Ok(ChannelConnectionResult {
                 status: "connected".into(),
                 restart_required: false,
@@ -621,6 +629,62 @@ mod tests {
         }
     }
 
+    #[test]
+    fn list_and_describe_use_static_channel_definitions() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+
+        let definitions = manager.list_definitions();
+        let ids = definitions
+            .iter()
+            .map(|definition| definition.id)
+            .collect::<Vec<_>>();
+        assert!(ids.contains(&"telegram"));
+        assert!(ids.contains(&"discord"));
+
+        assert_eq!(
+            manager
+                .describe("telegram")
+                .expect("telegram definition")
+                .id,
+            "telegram"
+        );
+        assert!(manager.describe("nonexistent").is_none());
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_unknown_channel_before_delegating() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+
+        let err = manager
+            .connect(
+                "nonexistent",
+                ChannelAuthMode::BotToken,
+                serde_json::json!({}),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(err.to_string(), "unknown channel: nonexistent");
+        assert!(manager.backend.calls.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn connect_rejects_non_object_credentials_before_delegating() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+
+        let err = manager
+            .connect(
+                "telegram",
+                ChannelAuthMode::BotToken,
+                serde_json::json!("not an object"),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(err.to_string(), "credentials must be a JSON object");
+        assert!(manager.backend.calls.lock().unwrap().is_empty());
+    }
+
     #[tokio::test]
     async fn connect_validates_credentials_before_delegating() {
         let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
@@ -641,6 +705,23 @@ mod tests {
         assert_eq!(
             manager.backend.calls.lock().unwrap().as_slice(),
             ["connect:telegram"]
+        );
+    }
+
+    #[tokio::test]
+    async fn connect_delegates_oauth_modes_without_required_credentials() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+
+        let result = manager
+            .connect("discord", ChannelAuthMode::OAuth, serde_json::json!({}))
+            .await
+            .unwrap();
+
+        assert_eq!(result.status, "pending_auth");
+        assert_eq!(result.auth_action.as_deref(), Some("discord_oauth"));
+        assert_eq!(
+            manager.backend.calls.lock().unwrap().as_slice(),
+            ["connect:discord"]
         );
     }
 
@@ -692,6 +773,23 @@ mod tests {
             manager.backend.calls.lock().unwrap().as_slice(),
             ["test:telegram"]
         );
+    }
+
+    #[tokio::test]
+    async fn test_rejects_non_object_credentials_before_delegating() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+
+        let err = manager
+            .test(
+                "telegram",
+                ChannelAuthMode::BotToken,
+                serde_json::json!("not an object"),
+            )
+            .await
+            .unwrap_err();
+
+        assert_eq!(err.to_string(), "credentials must be a JSON object");
+        assert!(manager.backend.calls.lock().unwrap().is_empty());
     }
 
     #[tokio::test]

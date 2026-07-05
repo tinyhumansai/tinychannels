@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 150 default unit tests, or 152 with `--all-features`. Phase
+clean) and passes 155 default unit tests, or 157 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -291,9 +291,10 @@ needs approval/voice/pairing/memory traits).
   and legacy envelope helper tests.
 - The pure allowlist parser / credential-provider key tests from
   `channels/controllers/ops_tests.rs` now live in `src/controllers/credentials.rs`.
-- The type-shape assertions from `channels/controllers/ops_tests.rs` (47) —
-  run them against a mock `ChannelBackend`; leave the REST-wiring assertions
-  in openhuman-4.
+- The portable catalog lookup and connect/test request-shape assertions from
+  `channels/controllers/ops_tests.rs` now live in `src/backend.rs` against a
+  mock `ChannelBackend`; OpenHuman keeps the app-side persistence/REST wiring
+  assertions.
 - Already mirrored (verify parity, then let openhuman-4 delete its copies once
   it depends on the crate): definitions, config schema, traits, context
   helpers, `compute_max_in_flight_messages`, the `tests/memory.rs` and
