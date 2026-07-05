@@ -67,8 +67,10 @@ WebSocket relay runtime. Legacy inbound `ChannelMessage`s now project into
 ids, the envelope can project back to legacy dispatch messages, and OpenHuman
 publishes that envelope on `ChannelMessageReceived` events. OpenHuman's relay
 inbound handler accepts authenticated relay envelopes and forwards them to the
-existing dispatch bus. Provider wire extraction, outbound relay usage, and
-deeper session-key adoption remain pending:
+existing dispatch bus. OpenHuman now projects outbound intents into Hermes
+relay `send` actions and routes sends through a live relay transport for
+configured relay identities. Provider wire extraction and deeper session-key
+adoption remain pending:
 
 | Surface | Status |
 | --- | --- |

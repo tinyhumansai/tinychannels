@@ -4,7 +4,11 @@ use crate::relay::{
     PassthroughForward, RelayDescriptorOptions, RelayFrameDialer, RelayFrameIo, RelayIdentity,
     RelayInboundHandler, RelayPlatformEntry, RelayReconnectPolicy, RelayTransport,
     RelayTransportError, RelayTransportTimeouts, delivery_payload, make_token_at,
-    make_upgrade_token_at, sign, verify_delivery_signature_at, verify_signature, verify_token_at,
+    make_upgrade_token_at, relay_send_action_from_outbound_intent, sign,
+    verify_delivery_signature_at, verify_signature, verify_token_at,
+};
+use crate::{
+    ChannelOutboundIntent, DeliveryDurability, OutboundPayload, outbound_intent_from_legacy_message,
 };
 use async_trait::async_trait;
 use serde_json::json;
@@ -289,6 +293,74 @@ fn connector_frames_roundtrip_and_build_buffer_ack() {
         inbound.inbound_ack(),
         Some(GatewayToConnectorFrame::InboundAck {
             buffer_id: "buf-1".into()
+        })
+    );
+}
+
+#[test]
+fn relay_send_action_projects_text_outbound_intent() {
+    let intent = ChannelOutboundIntent {
+        idempotency_key: "send-1".into(),
+        channel_id: "discord".into(),
+        conversation_id: "channel-123".into(),
+        reply_to_id: Some("message-1".into()),
+        thread_id: Some("thread-2".into()),
+        durability: DeliveryDurability::Required,
+        payload: OutboundPayload::Text { text: "hi".into() },
+    };
+
+    assert_eq!(
+        relay_send_action_from_outbound_intent(&intent),
+        json!({
+            "op": "send",
+            "chat_id": "channel-123",
+            "content": "hi",
+            "reply_to": "message-1",
+            "metadata": {
+                "idempotency_key": "send-1",
+                "channel_id": "discord",
+                "conversation_id": "channel-123",
+                "thread_id": "thread-2",
+                "durability": "required"
+            }
+        })
+    );
+}
+
+#[test]
+fn relay_send_action_preserves_legacy_native_payload_in_metadata() {
+    let intent = outbound_intent_from_legacy_message(
+        "telegram",
+        json!({
+            "chatId": "chat-1",
+            "content": "hello",
+            "photoUrl": "https://example.test/a.png",
+            "idempotencyKey": "legacy-1"
+        }),
+    );
+
+    assert_eq!(
+        relay_send_action_from_outbound_intent(&intent),
+        json!({
+            "op": "send",
+            "chat_id": "chat-1",
+            "content": "hello",
+            "reply_to": null,
+            "metadata": {
+                "idempotency_key": "legacy-1",
+                "channel_id": "telegram",
+                "conversation_id": "chat-1",
+                "durability": "best_effort",
+                "payload": {
+                    "kind": "native_channel_data",
+                    "data": {
+                        "chatId": "chat-1",
+                        "content": "hello",
+                        "photoUrl": "https://example.test/a.png",
+                        "idempotencyKey": "legacy-1"
+                    }
+                }
+            }
         })
     );
 }
