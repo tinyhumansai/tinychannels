@@ -1,5 +1,5 @@
 <p align="center">
- <img src="https://github.com/tinyhumansai/tinyjuice/raw/main/docs/channels.png" />
+ <img src="https://github.com/tinyhumansai/tinychannels/blob/main/docs/channels.png?raw=true" />
 </p>
 
 <h1 align="center">TinyChannels</h1>
