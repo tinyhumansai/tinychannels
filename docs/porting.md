@@ -12,6 +12,14 @@ that can compile independently from the OpenHuman application crate.
 - Shared controller response types from `channels/controllers/ops/types.rs`.
 - Portable runtime helpers for conversation keys, memory-context rendering,
   route commands, model-cache previews, and listener in-flight sizing.
+- Core channel descriptors, envelopes, outbound intents, receipts, capability
+  surfaces, send-error taxonomy, and session-key helpers.
+- Portable text chunking with UTF-16, markdown fence, and continuation
+  indicator handling.
+- Adapter and harness bridge contracts, including local host-owned delivery.
+- Durable delivery queue policy/state machine behind a host-owned storage
+  trait.
+- Relay descriptor and HMAC auth primitives with Hermes connector vector tests.
 - Migrated tests for the surfaces above.
 
 ## Backend Boundary
@@ -48,9 +56,8 @@ Per the 2026-07-04 audit, provider portability falls into a ladder:
 
 ## Current Status and Next Steps
 
-The spec's redesigned core (descriptors, envelopes, intents, receipts,
-capabilities, adapter trait, harness bridge, error taxonomy, chunking, relay)
-is **not implemented yet** — what exists is the legacy surface listed above.
+The spec's redesigned local core through Phase 5 is implemented in this crate.
+The relay transport frames and provider wire adapters are still pending, and
 OpenHuman does not yet depend on this crate; the ported files are duplicated
 copies in both repos and will drift until the dependency lands.
 

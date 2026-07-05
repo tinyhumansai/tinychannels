@@ -17,10 +17,10 @@ The companion research spec is
 The OpenHuman-side integration plan lives in
 `openhuman-4/docs/plans/tinychannels-integration.md`.
 
-## Current State (audited 2026-07-04; Phases 0-4 local slices landed)
+## Current State (audited 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 104 unit tests. Phase 0 hygiene has landed: sandbox-only
+clean) and passes 118 unit tests. Phase 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
 Yuanbao connect credentials are normalized through `YuanbaoConfig`, controller
@@ -41,8 +41,13 @@ capability-driven output-to-intent translation are in place. Phase 4's durable
 delivery queue has landed in `src/delivery/`: the host-owned storage trait,
 write-ahead queue operations, retry/backoff policy, permanent-error classifier,
 unknown-send reconciliation, targeted drains, and durable-capability negotiation
-are covered by unit tests. OpenHuman does not yet depend on these types, so
-cross-repo integration remains pending:
+are covered by unit tests. Phase 5's first generic adapter and relay contract
+slice has landed: `LocalChannelAdapter` covers host-owned local/API/webhook
+delivery, and `src/relay/` ports Hermes' `CapabilityDescriptor`, projection
+defaults, sorted compact JSON, WS-upgrade HMAC token, delivery signature, replay
+window, and multi-secret verification with byte-exact connector vectors.
+OpenHuman does not yet depend on these types, so cross-repo integration remains
+pending:
 
 | Surface | Status |
 | --- | --- |
@@ -57,7 +62,8 @@ cross-repo integration remains pending:
 | Chunking / length units | Phase 2 text engine landed in `src/text/` with UTF-16/fence/indicator tests |
 | Adapter / harness bridge | Phase 3 landed in `src/channel/adapter.rs` and `src/harness/` |
 | Durable delivery queue | Phase 4 landed in `src/delivery/` with backoff/permanent-error/reconciliation tests |
-| Relay contract | **Not started** |
+| Generic local adapter | Phase 5 `LocalChannelAdapter` landed in `src/adapters/` |
+| Relay contract | Phase 5 descriptor + HMAC auth landed; relay transport remains pending |
 | `tests/` integration dir | Empty |
 
 openhuman-4 does **not** depend on this crate yet; every ported file is a
@@ -222,6 +228,8 @@ Create the spec's modules with these verified upstream shapes:
 
 ### Phase 5 — Generic adapters + relay contract
 
+- **Partially landed locally:** `LocalChannelAdapter` plus relay descriptor and
+  HMAC auth primitives are implemented and tested against Hermes vectors.
 - Local/API/webhook adapter first (unblocks OpenHuman internal surfaces).
 - Relay: port `CapabilityDescriptor` (contract_version 1, frozen per
   connection, unknown-keys-ignored/additive-only, `max_message_length == 0 →

@@ -5,6 +5,7 @@
 //! runtime helpers, and the backend boundary that OpenHuman implements for
 //! channel side effects.
 
+pub mod adapters;
 pub mod backend;
 pub mod channel;
 pub mod config;
@@ -13,6 +14,7 @@ pub mod controllers;
 pub mod delivery;
 pub mod error;
 pub mod harness;
+pub mod relay;
 pub mod routes;
 pub mod runtime;
 pub mod text;
