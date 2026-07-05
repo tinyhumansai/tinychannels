@@ -1,6 +1,7 @@
 //! Normalized inbound channel envelopes.
 
 use crate::channel::types::{ChannelRef, ConversationRef, SenderRef};
+use crate::traits::ChannelMessage;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -151,4 +152,41 @@ pub struct ChannelInboundEnvelope {
     pub access: AccessContext,
     pub media: Vec<MediaReference>,
     pub raw: Option<Value>,
+}
+
+/// Project the legacy host `ChannelMessage` shape into a normalized inbound
+/// envelope without inferring provider-specific conversation kind.
+pub fn inbound_envelope_from_legacy_message(msg: &ChannelMessage) -> ChannelInboundEnvelope {
+    let thread_ts = msg
+        .thread_ts
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
+
+    let (thread_id, topic_id) = if msg.channel == "telegram" {
+        (None, thread_ts)
+    } else {
+        (thread_ts, None)
+    };
+
+    ChannelInboundEnvelope {
+        channel: ChannelRef {
+            id: msg.channel.clone(),
+            account_id: None,
+        },
+        message_id: msg.id.clone(),
+        conversation: ConversationRef {
+            id: msg.reply_target.clone(),
+            thread_id,
+            topic_id,
+            ..Default::default()
+        },
+        sender: SenderRef {
+            id: msg.sender.clone(),
+            ..Default::default()
+        },
+        text: msg.content.clone(),
+        ..Default::default()
+    }
 }

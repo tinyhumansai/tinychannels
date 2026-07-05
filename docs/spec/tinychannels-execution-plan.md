@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 164 default unit tests, or 166 with `--all-features`. Phase
+clean) and passes 167 default unit tests, or 169 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -62,8 +62,10 @@ sends, and legacy `Channel::send` callers now build a `ChannelOutboundIntent`
 and inject a deterministic idempotency key before delegating to the legacy
 message API/provider trait. The portable relay runtime config surface is
 staged in `ChannelsConfig`, but OpenHuman relay startup/adoption remains
-pending. Provider wire extraction and deeper envelope/session migration also
-remain pending:
+pending. Legacy inbound `ChannelMessage`s now project into
+`ChannelInboundEnvelope`s with Telegram topics separated from generic thread
+ids, and OpenHuman publishes that envelope on `ChannelMessageReceived` events.
+Provider wire extraction and deeper session-key adoption remain pending:
 
 | Surface | Status |
 | --- | --- |

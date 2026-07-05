@@ -1,5 +1,6 @@
 //! Session-key construction and legacy key compatibility.
 
+use crate::channel::envelope::ChannelInboundEnvelope;
 use crate::channel::types::{ChannelRef, ConversationKind, ConversationRef, SenderRef};
 use crate::traits::ChannelMessage;
 use schemars::JsonSchema;
@@ -78,6 +79,21 @@ pub fn build_session_key(
     }
 
     parts.join(":")
+}
+
+/// Build a deterministic TinyChannels session key from a normalized inbound envelope.
+pub fn build_session_key_for_inbound_envelope(
+    namespace: &str,
+    envelope: &ChannelInboundEnvelope,
+    policy: SessionKeyPolicy,
+) -> String {
+    build_session_key(
+        namespace,
+        &envelope.channel,
+        &envelope.conversation,
+        &envelope.sender,
+        policy,
+    )
 }
 
 /// Return legacy OpenHuman keys for migration lookup before writing a new key.

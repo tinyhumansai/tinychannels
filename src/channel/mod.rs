@@ -22,7 +22,7 @@ pub use capabilities::{
 };
 pub use envelope::{
     AccessContext, ChannelInboundEnvelope, GroupAccessPolicy, InboundMediaPayload, MediaKind,
-    MediaReference, MentionGate, SenderDmDecision,
+    MediaReference, MentionGate, SenderDmDecision, inbound_envelope_from_legacy_message,
 };
 pub use error::{ChannelSendError, SendErrorKind, classify_send_error, is_chat_level_not_found};
 pub use intent::{
@@ -36,7 +36,8 @@ pub use receipt::{
     resolve_message_receipt_primary_id,
 };
 pub use session::{
-    LegacySessionKeys, SessionKeyPolicy, build_session_key, conversation_history_key_candidates,
+    LegacySessionKeys, SessionKeyPolicy, build_session_key, build_session_key_for_inbound_envelope,
+    conversation_history_key_candidates,
 };
 pub use types::{
     ChannelDescriptor, ChannelRef, ConversationKind, ConversationRef, SecretRef, SenderRef,

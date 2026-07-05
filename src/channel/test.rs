@@ -267,6 +267,103 @@ fn session_keys_include_scope_topic_and_default_thread_sharing() {
 }
 
 #[test]
+fn session_keys_build_from_inbound_envelopes() {
+    let envelope = ChannelInboundEnvelope {
+        channel: ChannelRef {
+            id: "telegram".into(),
+            account_id: Some("bot-a".into()),
+        },
+        conversation: ConversationRef {
+            kind: ConversationKind::Group,
+            id: "-100123".into(),
+            scope_id: Some("tenant-a".into()),
+            topic_id: Some("topic-99".into()),
+            ..Default::default()
+        },
+        sender: SenderRef {
+            id: "alice".into(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let shared =
+        build_session_key_for_inbound_envelope("default", &envelope, SessionKeyPolicy::default());
+    assert_eq!(
+        shared,
+        "main:telegram:bot-a:group:tenant-a:-100123:topic-99"
+    );
+
+    let isolated = build_session_key_for_inbound_envelope(
+        "default",
+        &envelope,
+        SessionKeyPolicy {
+            thread_sessions_per_user: true,
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        isolated,
+        "main:telegram:bot-a:group:tenant-a:-100123:topic-99:alice"
+    );
+}
+
+#[test]
+fn legacy_inbound_envelope_preserves_telegram_topics_separately_from_threads() {
+    let msg = ChannelMessage {
+        id: "msg-1".into(),
+        channel: "telegram".into(),
+        sender: "alice".into(),
+        content: "hello".into(),
+        reply_target: "-100123".into(),
+        timestamp: 123,
+        thread_ts: Some(" topic-99 ".into()),
+    };
+
+    let envelope = inbound_envelope_from_legacy_message(&msg);
+
+    assert_eq!(envelope.channel.id, "telegram");
+    assert_eq!(envelope.message_id, "msg-1");
+    assert_eq!(envelope.conversation.id, "-100123");
+    assert_eq!(envelope.conversation.thread_id, None);
+    assert_eq!(envelope.conversation.topic_id.as_deref(), Some("topic-99"));
+    assert_eq!(envelope.sender.id, "alice");
+    assert_eq!(envelope.text, "hello");
+
+    let keys = conversation_history_key_candidates(&msg);
+    assert_eq!(keys.conversation_history_key, "telegram_alice_-100123");
+}
+
+#[test]
+fn legacy_inbound_envelope_preserves_non_telegram_threads() {
+    let msg = ChannelMessage {
+        id: "msg-1".into(),
+        channel: "discord".into(),
+        sender: "alice".into(),
+        content: "hello".into(),
+        reply_target: "channel-123".into(),
+        timestamp: 123,
+        thread_ts: Some(" thread-99 ".into()),
+    };
+
+    let envelope = inbound_envelope_from_legacy_message(&msg);
+
+    assert_eq!(envelope.channel.id, "discord");
+    assert_eq!(envelope.conversation.id, "channel-123");
+    assert_eq!(
+        envelope.conversation.thread_id.as_deref(),
+        Some("thread-99")
+    );
+    assert_eq!(envelope.conversation.topic_id, None);
+
+    let keys = conversation_history_key_candidates(&msg);
+    assert_eq!(
+        keys.conversation_history_key,
+        "discord_alice_channel-123_thread:thread-99"
+    );
+}
+
+#[test]
 fn legacy_session_key_candidates_match_openhuman_helpers() {
     let msg = ChannelMessage {
         id: "msg-1".into(),

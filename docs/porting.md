@@ -69,8 +69,9 @@ Per the 2026-07-04 audit, provider portability falls into a ladder:
 The spec's redesigned local core through Phase 5 is implemented in this crate.
 OpenHuman now depends on this crate through a path dependency and has adopted
 the shared traits, controller metadata/types, config structs, runtime helpers,
-and text chunker. OpenHuman relay runtime adoption and provider wire adapters
-are still pending.
+text chunker, send idempotency bridge, relay runtime config shape, and legacy
+inbound envelope projection. OpenHuman relay runtime adoption, provider wire
+adapters, and full session-key adoption are still pending.
 
 The phase-by-phase implementation plan, known-bug list, and test-migration
 plan live in
