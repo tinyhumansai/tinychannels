@@ -136,10 +136,10 @@ impl TelegramChannel {
             if let Some(tid) = thread_id {
                 markdown_body["message_thread_id"] = serde_json::Value::String(tid.to_string());
             }
-            if index == 0 {
-                if let Some(parent_id) = reply_to_message_id {
-                    markdown_body["reply_to_message_id"] = serde_json::Value::from(parent_id);
-                }
+            if index == 0
+                && let Some(parent_id) = reply_to_message_id
+            {
+                markdown_body["reply_to_message_id"] = serde_json::Value::from(parent_id);
             }
 
             let markdown_resp = self
@@ -172,10 +172,10 @@ impl TelegramChannel {
             if let Some(tid) = thread_id {
                 plain_body["message_thread_id"] = serde_json::Value::String(tid.to_string());
             }
-            if index == 0 {
-                if let Some(parent_id) = reply_to_message_id {
-                    plain_body["reply_to_message_id"] = serde_json::Value::from(parent_id);
-                }
+            if index == 0
+                && let Some(parent_id) = reply_to_message_id
+            {
+                plain_body["reply_to_message_id"] = serde_json::Value::from(parent_id);
             }
             let plain_resp = self
                 .http_client()

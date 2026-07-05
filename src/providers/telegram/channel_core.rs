@@ -218,10 +218,10 @@ impl TelegramChannel {
 
         window.recent_lookup.insert(update_id);
         window.recent_order.push_back(update_id);
-        if window.recent_order.len() > TELEGRAM_RECENT_UPDATE_CACHE_SIZE {
-            if let Some(evicted) = window.recent_order.pop_front() {
-                window.recent_lookup.remove(&evicted);
-            }
+        if window.recent_order.len() > TELEGRAM_RECENT_UPDATE_CACHE_SIZE
+            && let Some(evicted) = window.recent_order.pop_front()
+        {
+            window.recent_lookup.remove(&evicted);
         }
         true
     }
@@ -332,10 +332,10 @@ impl TelegramChannel {
         if normalized.is_empty() {
             return;
         }
-        if let Ok(mut users) = self.allowed_users.write() {
-            if !users.iter().any(|u| u == &normalized) {
-                users.push(normalized);
-            }
+        if let Ok(mut users) = self.allowed_users.write()
+            && !users.iter().any(|u| u == &normalized)
+        {
+            users.push(normalized);
         }
     }
 }

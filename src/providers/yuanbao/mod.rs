@@ -8,6 +8,11 @@
 //! - [`outbound`] owns Yuanbao send/query calls.
 //! - [`proto`] / [`proto_biz`] / [`wire`] own hand-written protobuf codecs.
 
+// Test setup across the yuanbao submodules builds configs via
+// `Default::default()` then field assignment; the stylistic
+// `field_reassign_with_default` lint isn't worth churning that code.
+#![allow(clippy::field_reassign_with_default)]
+
 pub mod channel;
 pub mod config;
 pub mod connection;

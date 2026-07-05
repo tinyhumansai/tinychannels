@@ -157,10 +157,10 @@ pub fn parse_fields(data: &[u8]) -> Result<Vec<(u32, FieldValue)>, YuanbaoError>
 
 pub fn get_string(fields: &[(u32, FieldValue)], num: u32) -> String {
     for (n, v) in fields {
-        if *n == num {
-            if let FieldValue::Bytes(b) = v {
-                return String::from_utf8_lossy(b).into_owned();
-            }
+        if *n == num
+            && let FieldValue::Bytes(b) = v
+        {
+            return String::from_utf8_lossy(b).into_owned();
         }
     }
     String::new()
@@ -168,10 +168,10 @@ pub fn get_string(fields: &[(u32, FieldValue)], num: u32) -> String {
 
 pub fn get_varint(fields: &[(u32, FieldValue)], num: u32) -> u64 {
     for (n, v) in fields {
-        if *n == num {
-            if let FieldValue::Varint(x) = v {
-                return *x;
-            }
+        if *n == num
+            && let FieldValue::Varint(x) = v
+        {
+            return *x;
         }
     }
     0
@@ -179,10 +179,10 @@ pub fn get_varint(fields: &[(u32, FieldValue)], num: u32) -> u64 {
 
 pub fn get_bytes(fields: &[(u32, FieldValue)], num: u32) -> Vec<u8> {
     for (n, v) in fields {
-        if *n == num {
-            if let FieldValue::Bytes(b) = v {
-                return b.clone();
-            }
+        if *n == num
+            && let FieldValue::Bytes(b) = v
+        {
+            return b.clone();
         }
     }
     Vec::new()

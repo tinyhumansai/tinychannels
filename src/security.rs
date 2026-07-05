@@ -107,40 +107,40 @@ impl PairingGuard {
         // Check brute force lockout
         {
             let attempts = self.failed_attempts.lock();
-            if let (count, Some(locked_at)) = &*attempts {
-                if *count >= MAX_PAIR_ATTEMPTS {
-                    let elapsed = locked_at.elapsed().as_secs();
-                    if elapsed < PAIR_LOCKOUT_SECS {
-                        tracing::warn!(
-                            "[openhuman:pairing] Pairing locked out: {} failed attempts, {}s remaining",
-                            count,
-                            PAIR_LOCKOUT_SECS - elapsed
-                        );
-                        return Err(PAIR_LOCKOUT_SECS - elapsed);
-                    }
+            if let (count, Some(locked_at)) = &*attempts
+                && *count >= MAX_PAIR_ATTEMPTS
+            {
+                let elapsed = locked_at.elapsed().as_secs();
+                if elapsed < PAIR_LOCKOUT_SECS {
+                    tracing::warn!(
+                        "[openhuman:pairing] Pairing locked out: {} failed attempts, {}s remaining",
+                        count,
+                        PAIR_LOCKOUT_SECS - elapsed
+                    );
+                    return Err(PAIR_LOCKOUT_SECS - elapsed);
                 }
             }
         }
 
         {
             let mut pairing_code = self.pairing_code.lock();
-            if let Some(ref expected) = *pairing_code {
-                if constant_time_eq(code.trim(), expected.trim()) {
-                    // Reset failed attempts on success
-                    {
-                        let mut attempts = self.failed_attempts.lock();
-                        *attempts = (0, None);
-                    }
-                    let token = generate_token();
-                    let mut tokens = self.paired_tokens.lock();
-                    tokens.insert(hash_token(&token));
-
-                    // Consume the pairing code so it cannot be reused
-                    *pairing_code = None;
-
-                    tracing::info!("[openhuman:pairing] Pairing successful, token issued");
-                    return Ok(Some(token));
+            if let Some(ref expected) = *pairing_code
+                && constant_time_eq(code.trim(), expected.trim())
+            {
+                // Reset failed attempts on success
+                {
+                    let mut attempts = self.failed_attempts.lock();
+                    *attempts = (0, None);
                 }
+                let token = generate_token();
+                let mut tokens = self.paired_tokens.lock();
+                tokens.insert(hash_token(&token));
+
+                // Consume the pairing code so it cannot be reused
+                *pairing_code = None;
+
+                tracing::info!("[openhuman:pairing] Pairing successful, token issued");
+                return Ok(Some(token));
             }
         }
 

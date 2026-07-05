@@ -192,13 +192,13 @@ pub async fn get_cos_credentials(
         .json()
         .await
         .map_err(|e| YuanbaoError::Media(format!("genUploadInfo body parse: {e}")))?;
-    if let Some(code) = payload.get("code").and_then(|c| c.as_i64()) {
-        if code != 0 {
-            return Err(YuanbaoError::Media(format!(
-                "genUploadInfo code={code}, msg={}",
-                payload.get("msg").and_then(|m| m.as_str()).unwrap_or("")
-            )));
-        }
+    if let Some(code) = payload.get("code").and_then(|c| c.as_i64())
+        && code != 0
+    {
+        return Err(YuanbaoError::Media(format!(
+            "genUploadInfo code={code}, msg={}",
+            payload.get("msg").and_then(|m| m.as_str()).unwrap_or("")
+        )));
     }
     let data = payload.get("data").unwrap_or(&payload);
     let get_str = |k: &str| -> String {

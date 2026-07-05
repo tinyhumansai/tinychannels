@@ -86,12 +86,11 @@ impl OutboundSender {
     /// Prefers the server-issued `bot_id` cached after sign-token / auth-bind
     /// — matches hermes-agent `_bot_id = token_data["bot_id"]` (yuanbao.py:400).
     async fn resolve_from_account(&self) -> String {
-        if let Some(sign) = &self.sign_manager {
-            if let Some(entry) = sign.cached(&self.app_key).await {
-                if !entry.bot_id.is_empty() {
-                    return entry.bot_id;
-                }
-            }
+        if let Some(sign) = &self.sign_manager
+            && let Some(entry) = sign.cached(&self.app_key).await
+            && !entry.bot_id.is_empty()
+        {
+            return entry.bot_id;
         }
         self.config_bot_id.clone()
     }
@@ -319,10 +318,10 @@ fn random_u32() -> u32 {
 /// back to "file" if there's nothing usable.
 fn extract_filename(url_str: &str) -> String {
     if let Ok(parsed) = url::Url::parse(url_str) {
-        if let Some(segments) = parsed.path_segments() {
-            if let Some(last) = segments.filter(|s| !s.is_empty()).last() {
-                return last.to_string();
-            }
+        if let Some(mut segments) = parsed.path_segments()
+            && let Some(last) = segments.rfind(|s| !s.is_empty())
+        {
+            return last.to_string();
         }
         return "file".to_string();
     }

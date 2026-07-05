@@ -211,40 +211,40 @@ pub fn encode_push_ack(original: &ConnFrame) -> Vec<u8> {
 
 pub fn encode_msg_content(c: &MsgContent) -> Vec<u8> {
     let mut buf = Vec::with_capacity(64);
-    if let Some(ref v) = c.text {
-        if !v.is_empty() {
-            encode_field_string(1, v, &mut buf);
-        }
+    if let Some(ref v) = c.text
+        && !v.is_empty()
+    {
+        encode_field_string(1, v, &mut buf);
     }
-    if let Some(ref v) = c.uuid {
-        if !v.is_empty() {
-            encode_field_string(2, v, &mut buf);
-        }
+    if let Some(ref v) = c.uuid
+        && !v.is_empty()
+    {
+        encode_field_string(2, v, &mut buf);
     }
-    if let Some(v) = c.image_format {
-        if v != 0 {
-            encode_field_varint(3, v as u64, &mut buf);
-        }
+    if let Some(v) = c.image_format
+        && v != 0
+    {
+        encode_field_varint(3, v as u64, &mut buf);
     }
-    if let Some(ref v) = c.data {
-        if !v.is_empty() {
-            encode_field_string(4, v, &mut buf);
-        }
+    if let Some(ref v) = c.data
+        && !v.is_empty()
+    {
+        encode_field_string(4, v, &mut buf);
     }
-    if let Some(ref v) = c.desc {
-        if !v.is_empty() {
-            encode_field_string(5, v, &mut buf);
-        }
+    if let Some(ref v) = c.desc
+        && !v.is_empty()
+    {
+        encode_field_string(5, v, &mut buf);
     }
-    if let Some(ref v) = c.ext {
-        if !v.is_empty() {
-            encode_field_string(6, v, &mut buf);
-        }
+    if let Some(ref v) = c.ext
+        && !v.is_empty()
+    {
+        encode_field_string(6, v, &mut buf);
     }
-    if let Some(ref v) = c.sound {
-        if !v.is_empty() {
-            encode_field_string(7, v, &mut buf);
-        }
+    if let Some(ref v) = c.sound
+        && !v.is_empty()
+    {
+        encode_field_string(7, v, &mut buf);
     }
     for img in &c.image_info_array {
         let mut ib = Vec::with_capacity(48);
@@ -265,25 +265,25 @@ pub fn encode_msg_content(c: &MsgContent) -> Vec<u8> {
         }
         encode_field_bytes(8, &ib, &mut buf);
     }
-    if let Some(v) = c.index {
-        if v != 0 {
-            encode_field_varint(9, v as u64, &mut buf);
-        }
+    if let Some(v) = c.index
+        && v != 0
+    {
+        encode_field_varint(9, v as u64, &mut buf);
     }
-    if let Some(ref v) = c.url {
-        if !v.is_empty() {
-            encode_field_string(10, v, &mut buf);
-        }
+    if let Some(ref v) = c.url
+        && !v.is_empty()
+    {
+        encode_field_string(10, v, &mut buf);
     }
-    if let Some(v) = c.file_size {
-        if v != 0 {
-            encode_field_varint(11, v as u64, &mut buf);
-        }
+    if let Some(v) = c.file_size
+        && v != 0
+    {
+        encode_field_varint(11, v as u64, &mut buf);
     }
-    if let Some(ref v) = c.file_name {
-        if !v.is_empty() {
-            encode_field_string(12, v, &mut buf);
-        }
+    if let Some(ref v) = c.file_name
+        && !v.is_empty()
+    {
+        encode_field_string(12, v, &mut buf);
     }
     buf
 }

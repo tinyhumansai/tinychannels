@@ -115,13 +115,12 @@ impl EmailChannel {
         }
         for part in parsed.attachments() {
             let part: &mail_parser::MessagePart = part;
-            if let Some(ct) = MimeHeaders::content_type(part) {
-                if ct.ctype() == "text" {
-                    if let Ok(text) = std::str::from_utf8(part.contents()) {
-                        let name = MimeHeaders::attachment_name(part).unwrap_or("file");
-                        return format!("[Attachment: {}]\n{}", name, text);
-                    }
-                }
+            if let Some(ct) = MimeHeaders::content_type(part)
+                && ct.ctype() == "text"
+                && let Ok(text) = std::str::from_utf8(part.contents())
+            {
+                let name = MimeHeaders::attachment_name(part).unwrap_or("file");
+                return format!("[Attachment: {}]\n{}", name, text);
             }
         }
         "(no readable content)".to_string()
@@ -182,50 +181,50 @@ impl EmailChannel {
 
         for msg in messages {
             let uid = msg.uid.unwrap_or(0);
-            if let Some(body) = msg.body() {
-                if let Some(parsed) = MessageParser::default().parse(body) {
-                    let sender = Self::extract_sender(&parsed);
-                    let subject = parsed.subject().unwrap_or("(no subject)").to_string();
-                    let body_text = Self::extract_text(&parsed);
-                    let content = format!("Subject: {}\n\n{}", subject, body_text);
-                    let msg_id = parsed
-                        .message_id()
-                        .map(|s| s.to_string())
-                        .unwrap_or_else(|| format!("gen-{}", Uuid::new_v4()));
+            if let Some(body) = msg.body()
+                && let Some(parsed) = MessageParser::default().parse(body)
+            {
+                let sender = Self::extract_sender(&parsed);
+                let subject = parsed.subject().unwrap_or("(no subject)").to_string();
+                let body_text = Self::extract_text(&parsed);
+                let content = format!("Subject: {}\n\n{}", subject, body_text);
+                let msg_id = parsed
+                    .message_id()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| format!("gen-{}", Uuid::new_v4()));
 
-                    #[allow(clippy::cast_sign_loss)]
-                    let ts = parsed
-                        .date()
-                        .map(|d| {
-                            let naive = chrono::NaiveDate::from_ymd_opt(
-                                d.year as i32,
-                                u32::from(d.month),
-                                u32::from(d.day),
+                #[allow(clippy::cast_sign_loss)]
+                let ts = parsed
+                    .date()
+                    .map(|d| {
+                        let naive = chrono::NaiveDate::from_ymd_opt(
+                            d.year as i32,
+                            u32::from(d.month),
+                            u32::from(d.day),
+                        )
+                        .and_then(|date| {
+                            date.and_hms_opt(
+                                u32::from(d.hour),
+                                u32::from(d.minute),
+                                u32::from(d.second),
                             )
-                            .and_then(|date| {
-                                date.and_hms_opt(
-                                    u32::from(d.hour),
-                                    u32::from(d.minute),
-                                    u32::from(d.second),
-                                )
-                            });
-                            naive.map_or(0, |n| n.and_utc().timestamp() as u64)
-                        })
-                        .unwrap_or_else(|| {
-                            SystemTime::now()
-                                .duration_since(UNIX_EPOCH)
-                                .map(|d| d.as_secs())
-                                .unwrap_or(0)
                         });
-
-                    results.push(ParsedEmail {
-                        _uid: uid,
-                        msg_id,
-                        sender,
-                        content,
-                        timestamp: ts,
+                        naive.map_or(0, |n| n.and_utc().timestamp() as u64)
+                    })
+                    .unwrap_or_else(|| {
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0)
                     });
-                }
+
+                results.push(ParsedEmail {
+                    _uid: uid,
+                    msg_id,
+                    sender,
+                    content,
+                    timestamp: ts,
+                });
             }
         }
 

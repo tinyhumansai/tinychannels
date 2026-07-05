@@ -226,10 +226,10 @@ impl TelegramChannel {
     pub(crate) fn check_and_update_approval_debounce(&self, chat_id: &str, sender: &str) -> bool {
         let key = Self::approval_debounce_key(chat_id, sender);
         let mut prompts = self.recent_approval_prompts.lock();
-        if let Some(last_sent) = prompts.get(&key) {
-            if last_sent.elapsed().as_secs() < APPROVAL_PROMPT_DEBOUNCE_SECS {
-                return true; // still within de-bounce window
-            }
+        if let Some(last_sent) = prompts.get(&key)
+            && last_sent.elapsed().as_secs() < APPROVAL_PROMPT_DEBOUNCE_SECS
+        {
+            return true; // still within de-bounce window
         }
         // Evict entries older than the de-bounce window before inserting. Anything
         // past the window can never suppress again, so retaining it would let the
@@ -916,12 +916,12 @@ impl TelegramChannel {
             "[telegram:voice] transcribe entry"
         );
 
-        if let Some(file_size) = voice.file_size {
-            if file_size > TELEGRAM_MAX_VOICE_FILE_BYTES {
-                anyhow::bail!(
-                    "Telegram voice file too large: {file_size} bytes (max {TELEGRAM_MAX_VOICE_FILE_BYTES})"
-                );
-            }
+        if let Some(file_size) = voice.file_size
+            && file_size > TELEGRAM_MAX_VOICE_FILE_BYTES
+        {
+            anyhow::bail!(
+                "Telegram voice file too large: {file_size} bytes (max {TELEGRAM_MAX_VOICE_FILE_BYTES})"
+            );
         }
 
         let (audio_bytes, file_name, api_file_size) = self
@@ -935,12 +935,12 @@ impl TelegramChannel {
             "[telegram:voice] download completed before transcription"
         );
 
-        if let Some(file_size) = api_file_size {
-            if file_size > TELEGRAM_MAX_VOICE_FILE_BYTES {
-                anyhow::bail!(
-                    "Telegram getFile reported voice file too large: {file_size} bytes (max {TELEGRAM_MAX_VOICE_FILE_BYTES})"
-                );
-            }
+        if let Some(file_size) = api_file_size
+            && file_size > TELEGRAM_MAX_VOICE_FILE_BYTES
+        {
+            anyhow::bail!(
+                "Telegram getFile reported voice file too large: {file_size} bytes (max {TELEGRAM_MAX_VOICE_FILE_BYTES})"
+            );
         }
         if u64::try_from(audio_bytes.len()).unwrap_or(u64::MAX) > TELEGRAM_MAX_VOICE_FILE_BYTES {
             anyhow::bail!(
@@ -1061,18 +1061,18 @@ impl TelegramChannel {
             .filter(|path| !path.trim().is_empty())
             .ok_or_else(|| anyhow::anyhow!("Telegram getFile response missing file_path"))?;
         let file_size = result.get("file_size").and_then(serde_json::Value::as_u64);
-        if let Some(file_size) = file_size {
-            if file_size > TELEGRAM_MAX_VOICE_FILE_BYTES {
-                tracing::debug!(
-                    file_unique_id = file_unique_id.unwrap_or("unknown"),
-                    file_size,
-                    max_bytes = TELEGRAM_MAX_VOICE_FILE_BYTES,
-                    "[telegram:voice:download] Telegram getFile file_size exceeds cap"
-                );
-                anyhow::bail!(
-                    "Telegram getFile reported voice file too large: {file_size} bytes (max {TELEGRAM_MAX_VOICE_FILE_BYTES})"
-                );
-            }
+        if let Some(file_size) = file_size
+            && file_size > TELEGRAM_MAX_VOICE_FILE_BYTES
+        {
+            tracing::debug!(
+                file_unique_id = file_unique_id.unwrap_or("unknown"),
+                file_size,
+                max_bytes = TELEGRAM_MAX_VOICE_FILE_BYTES,
+                "[telegram:voice:download] Telegram getFile file_size exceeds cap"
+            );
+            anyhow::bail!(
+                "Telegram getFile reported voice file too large: {file_size} bytes (max {TELEGRAM_MAX_VOICE_FILE_BYTES})"
+            );
         }
         let file_name = file_path
             .rsplit('/')
@@ -1099,18 +1099,18 @@ impl TelegramChannel {
             .send()
             .await
             .map_err(|e| anyhow::anyhow!("{}", self.redact_bot_token(e.to_string())))?;
-        if let Some(content_length) = file_resp.content_length() {
-            if content_length > TELEGRAM_MAX_VOICE_FILE_BYTES {
-                tracing::debug!(
-                    file_unique_id = file_unique_id.unwrap_or("unknown"),
-                    content_length,
-                    max_bytes = TELEGRAM_MAX_VOICE_FILE_BYTES,
-                    "[telegram:voice:download] voice download Content-Length exceeds cap"
-                );
-                anyhow::bail!(
-                    "Telegram voice download too large: {content_length} bytes (max {TELEGRAM_MAX_VOICE_FILE_BYTES})"
-                );
-            }
+        if let Some(content_length) = file_resp.content_length()
+            && content_length > TELEGRAM_MAX_VOICE_FILE_BYTES
+        {
+            tracing::debug!(
+                file_unique_id = file_unique_id.unwrap_or("unknown"),
+                content_length,
+                max_bytes = TELEGRAM_MAX_VOICE_FILE_BYTES,
+                "[telegram:voice:download] voice download Content-Length exceeds cap"
+            );
+            anyhow::bail!(
+                "Telegram voice download too large: {content_length} bytes (max {TELEGRAM_MAX_VOICE_FILE_BYTES})"
+            );
         }
         tracing::debug!(
             file_unique_id = file_unique_id.unwrap_or("unknown"),

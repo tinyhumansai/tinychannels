@@ -42,11 +42,19 @@
 //! [`whatsapp-rust`]: https://docs.rs/whatsapp-rust/0.5
 
 use crate::traits::{Channel, ChannelMessage, SendMessage};
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use async_trait::async_trait;
-use parking_lot::Mutex;
-use std::collections::HashSet;
 use std::sync::Arc;
+
+// Imports used only by the real (feature-on) implementation; gated so the
+// feature-off stub build doesn't flag them as unused.
+#[cfg(feature = "whatsapp-web")]
+use anyhow::anyhow;
+#[cfg(feature = "whatsapp-web")]
+use parking_lot::Mutex;
+#[cfg(feature = "whatsapp-web")]
+use std::collections::HashSet;
+#[cfg(feature = "whatsapp-web")]
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// WhatsApp Web channel.
@@ -630,5 +638,8 @@ impl Channel for WhatsAppWebChannel {
     }
 }
 
+// Every test is `#[cfg(feature = "whatsapp-web")]`, so gate the whole module
+// on the feature to avoid an unused `use super::*` in the feature-off build.
+#[cfg(all(test, feature = "whatsapp-web"))]
 #[path = "whatsapp_web_tests.rs"]
 mod tests;
