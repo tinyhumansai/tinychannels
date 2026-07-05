@@ -4,6 +4,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::channel::MessageReceipt;
+
 /// Result returned by `connect_channel`.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ChannelConnectionResult {
@@ -40,6 +42,62 @@ pub struct ChannelStatusEntry {
 pub struct ChannelTestResult {
     pub success: bool,
     pub message: String,
+}
+
+/// Result returned by `send_message`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ChannelSendMessageResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<MessageReceipt>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
+}
+
+/// Result returned by `send_reaction`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ChannelReactionResult {
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
+}
+
+/// Result returned by thread creation/update operations.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ChannelThreadResult {
+    pub thread_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
+}
+
+/// One channel thread row.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ChannelThreadEntry {
+    pub thread_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
+}
+
+/// Result returned by thread listing.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ChannelThreadListResult {
+    pub threads: Vec<ChannelThreadEntry>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
 }
 
 /// Result from `telegram_login_start`.
@@ -84,4 +142,54 @@ pub struct DiscordLinkCheckResult {
     /// Backend-provided status payload (may include discordId, etc.).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<Value>,
+}
+
+/// Discord guild row for setup flows.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct DiscordGuildEntry {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
+}
+
+/// Result returned by Discord guild listing.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct DiscordGuildListResult {
+    pub guilds: Vec<DiscordGuildEntry>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
+}
+
+/// Discord channel row for setup flows.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct DiscordChannelEntry {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
+}
+
+/// Result returned by Discord channel listing.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct DiscordChannelListResult {
+    pub channels: Vec<DiscordChannelEntry>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
+}
+
+/// Result returned by Discord permission checks.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct DiscordPermissionCheckResult {
+    pub can_send_messages: bool,
+    pub missing_permissions: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw: Option<Value>,
 }

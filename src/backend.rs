@@ -2,8 +2,10 @@
 
 use crate::config::{ChannelsConfig, YuanbaoConfig, strip_yuanbao_version_prefix};
 use crate::controllers::{
-    ChannelAuthMode, ChannelConnectionResult, ChannelDefinition, ChannelStatusEntry,
-    ChannelTestResult, DiscordLinkCheckResult, DiscordLinkStartResult, TelegramLoginCheckResult,
+    ChannelAuthMode, ChannelConnectionResult, ChannelDefinition, ChannelReactionResult,
+    ChannelSendMessageResult, ChannelStatusEntry, ChannelTestResult, ChannelThreadListResult,
+    ChannelThreadResult, DiscordChannelListResult, DiscordGuildListResult, DiscordLinkCheckResult,
+    DiscordLinkStartResult, DiscordPermissionCheckResult, TelegramLoginCheckResult,
     TelegramLoginStartResult,
 };
 use crate::traits::SendMessage;
@@ -51,21 +53,21 @@ pub trait ChannelBackend: Send + Sync {
         config: &ChannelsConfig,
         channel: &str,
         message: SendMessage,
-    ) -> anyhow::Result<Value>;
+    ) -> anyhow::Result<ChannelSendMessageResult>;
 
     async fn send_reaction(
         &self,
         config: &ChannelsConfig,
         channel: &str,
         reaction: Value,
-    ) -> anyhow::Result<Value>;
+    ) -> anyhow::Result<ChannelReactionResult>;
 
     async fn create_thread(
         &self,
         config: &ChannelsConfig,
         channel: &str,
         title: &str,
-    ) -> anyhow::Result<Value>;
+    ) -> anyhow::Result<ChannelThreadResult>;
 
     async fn update_thread(
         &self,
@@ -73,14 +75,14 @@ pub trait ChannelBackend: Send + Sync {
         channel: &str,
         thread_id: &str,
         action: &str,
-    ) -> anyhow::Result<Value>;
+    ) -> anyhow::Result<ChannelThreadResult>;
 
     async fn list_threads(
         &self,
         config: &ChannelsConfig,
         channel: &str,
         active: Option<bool>,
-    ) -> anyhow::Result<Value>;
+    ) -> anyhow::Result<ChannelThreadListResult>;
 
     async fn telegram_login_start(
         &self,
@@ -104,20 +106,23 @@ pub trait ChannelBackend: Send + Sync {
         link_token: &str,
     ) -> anyhow::Result<DiscordLinkCheckResult>;
 
-    async fn discord_list_guilds(&self, config: &ChannelsConfig) -> anyhow::Result<Value>;
+    async fn discord_list_guilds(
+        &self,
+        config: &ChannelsConfig,
+    ) -> anyhow::Result<DiscordGuildListResult>;
 
     async fn discord_list_channels(
         &self,
         config: &ChannelsConfig,
         guild_id: &str,
-    ) -> anyhow::Result<Value>;
+    ) -> anyhow::Result<DiscordChannelListResult>;
 
     async fn discord_check_permissions(
         &self,
         config: &ChannelsConfig,
         guild_id: &str,
         channel_id: &str,
-    ) -> anyhow::Result<Value>;
+    ) -> anyhow::Result<DiscordPermissionCheckResult>;
 
     async fn set_default_channel(
         &self,
@@ -213,10 +218,114 @@ impl<B: ChannelBackend> ChannelManager<B> {
     }
 
     #[tracing::instrument(skip(self, message), fields(channel = %channel))]
-    pub async fn send_message(&self, channel: &str, message: SendMessage) -> anyhow::Result<Value> {
+    pub async fn send_message(
+        &self,
+        channel: &str,
+        message: SendMessage,
+    ) -> anyhow::Result<ChannelSendMessageResult> {
         self.backend
             .send_message(&self.config, channel, message)
             .await
+    }
+
+    pub async fn send_reaction(
+        &self,
+        channel: &str,
+        reaction: Value,
+    ) -> anyhow::Result<ChannelReactionResult> {
+        self.backend
+            .send_reaction(&self.config, channel, reaction)
+            .await
+    }
+
+    pub async fn create_thread(
+        &self,
+        channel: &str,
+        title: &str,
+    ) -> anyhow::Result<ChannelThreadResult> {
+        self.backend
+            .create_thread(&self.config, channel, title)
+            .await
+    }
+
+    pub async fn update_thread(
+        &self,
+        channel: &str,
+        thread_id: &str,
+        action: &str,
+    ) -> anyhow::Result<ChannelThreadResult> {
+        self.backend
+            .update_thread(&self.config, channel, thread_id, action)
+            .await
+    }
+
+    pub async fn list_threads(
+        &self,
+        channel: &str,
+        active: Option<bool>,
+    ) -> anyhow::Result<ChannelThreadListResult> {
+        self.backend
+            .list_threads(&self.config, channel, active)
+            .await
+    }
+
+    pub async fn telegram_login_start(&self) -> anyhow::Result<TelegramLoginStartResult> {
+        self.backend.telegram_login_start(&self.config).await
+    }
+
+    pub async fn telegram_login_check(
+        &self,
+        link_token: &str,
+    ) -> anyhow::Result<TelegramLoginCheckResult> {
+        self.backend
+            .telegram_login_check(&self.config, link_token)
+            .await
+    }
+
+    pub async fn discord_link_start(&self) -> anyhow::Result<DiscordLinkStartResult> {
+        self.backend.discord_link_start(&self.config).await
+    }
+
+    pub async fn discord_link_check(
+        &self,
+        link_token: &str,
+    ) -> anyhow::Result<DiscordLinkCheckResult> {
+        self.backend
+            .discord_link_check(&self.config, link_token)
+            .await
+    }
+
+    pub async fn discord_list_guilds(&self) -> anyhow::Result<DiscordGuildListResult> {
+        self.backend.discord_list_guilds(&self.config).await
+    }
+
+    pub async fn discord_list_channels(
+        &self,
+        guild_id: &str,
+    ) -> anyhow::Result<DiscordChannelListResult> {
+        self.backend
+            .discord_list_channels(&self.config, guild_id)
+            .await
+    }
+
+    pub async fn discord_check_permissions(
+        &self,
+        guild_id: &str,
+        channel_id: &str,
+    ) -> anyhow::Result<DiscordPermissionCheckResult> {
+        self.backend
+            .discord_check_permissions(&self.config, guild_id, channel_id)
+            .await
+    }
+
+    pub async fn set_default_channel(&self, channel: &str) -> anyhow::Result<()> {
+        self.backend
+            .set_default_channel(&self.config, channel)
+            .await
+    }
+
+    pub async fn get_default_channel(&self) -> anyhow::Result<Option<String>> {
+        self.backend.get_default_channel(&self.config).await
     }
 }
 
@@ -235,6 +344,7 @@ fn normalize_connect_credentials(channel: &str, credentials: Value) -> anyhow::R
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::controllers::{ChannelThreadEntry, DiscordChannelEntry, DiscordGuildEntry};
     use std::sync::Mutex;
 
     #[derive(Default)]
@@ -298,11 +408,15 @@ mod tests {
             _config: &ChannelsConfig,
             channel: &str,
             message: SendMessage,
-        ) -> anyhow::Result<Value> {
-            Ok(serde_json::json!({
+        ) -> anyhow::Result<ChannelSendMessageResult> {
+            Ok(ChannelSendMessageResult {
+                message_id: Some("msg-1".into()),
+                raw: Some(serde_json::json!({
                 "channel": channel,
                 "content": message.content,
-            }))
+                })),
+                ..Default::default()
+            })
         }
 
         async fn send_reaction(
@@ -310,27 +424,38 @@ mod tests {
             _config: &ChannelsConfig,
             _channel: &str,
             _reaction: Value,
-        ) -> anyhow::Result<Value> {
-            unimplemented!("not used by this test")
+        ) -> anyhow::Result<ChannelReactionResult> {
+            Ok(ChannelReactionResult {
+                success: true,
+                ..Default::default()
+            })
         }
 
         async fn create_thread(
             &self,
             _config: &ChannelsConfig,
             _channel: &str,
-            _title: &str,
-        ) -> anyhow::Result<Value> {
-            unimplemented!("not used by this test")
+            title: &str,
+        ) -> anyhow::Result<ChannelThreadResult> {
+            Ok(ChannelThreadResult {
+                thread_id: "thread-1".into(),
+                title: Some(title.into()),
+                raw: None,
+            })
         }
 
         async fn update_thread(
             &self,
             _config: &ChannelsConfig,
             _channel: &str,
-            _thread_id: &str,
+            thread_id: &str,
             _action: &str,
-        ) -> anyhow::Result<Value> {
-            unimplemented!("not used by this test")
+        ) -> anyhow::Result<ChannelThreadResult> {
+            Ok(ChannelThreadResult {
+                thread_id: thread_id.into(),
+                title: None,
+                raw: None,
+            })
         }
 
         async fn list_threads(
@@ -338,8 +463,16 @@ mod tests {
             _config: &ChannelsConfig,
             _channel: &str,
             _active: Option<bool>,
-        ) -> anyhow::Result<Value> {
-            unimplemented!("not used by this test")
+        ) -> anyhow::Result<ChannelThreadListResult> {
+            Ok(ChannelThreadListResult {
+                threads: vec![ChannelThreadEntry {
+                    thread_id: "thread-1".into(),
+                    title: Some("Demo".into()),
+                    active: Some(true),
+                    raw: None,
+                }],
+                raw: None,
+            })
         }
 
         async fn telegram_login_start(
@@ -372,16 +505,34 @@ mod tests {
             unimplemented!("not used by this test")
         }
 
-        async fn discord_list_guilds(&self, _config: &ChannelsConfig) -> anyhow::Result<Value> {
-            unimplemented!("not used by this test")
+        async fn discord_list_guilds(
+            &self,
+            _config: &ChannelsConfig,
+        ) -> anyhow::Result<DiscordGuildListResult> {
+            Ok(DiscordGuildListResult {
+                guilds: vec![DiscordGuildEntry {
+                    id: "guild-1".into(),
+                    name: "Guild".into(),
+                    raw: None,
+                }],
+                raw: None,
+            })
         }
 
         async fn discord_list_channels(
             &self,
             _config: &ChannelsConfig,
             _guild_id: &str,
-        ) -> anyhow::Result<Value> {
-            unimplemented!("not used by this test")
+        ) -> anyhow::Result<DiscordChannelListResult> {
+            Ok(DiscordChannelListResult {
+                channels: vec![DiscordChannelEntry {
+                    id: "channel-1".into(),
+                    name: "general".into(),
+                    kind: Some("text".into()),
+                    raw: None,
+                }],
+                raw: None,
+            })
         }
 
         async fn discord_check_permissions(
@@ -389,8 +540,12 @@ mod tests {
             _config: &ChannelsConfig,
             _guild_id: &str,
             _channel_id: &str,
-        ) -> anyhow::Result<Value> {
-            unimplemented!("not used by this test")
+        ) -> anyhow::Result<DiscordPermissionCheckResult> {
+            Ok(DiscordPermissionCheckResult {
+                can_send_messages: true,
+                missing_permissions: Vec::new(),
+                raw: None,
+            })
         }
     }
 
@@ -450,7 +605,66 @@ mod tests {
             .send_message("telegram", SendMessage::new("hello", "alice"))
             .await
             .unwrap();
-        assert_eq!(out["channel"], "telegram");
-        assert_eq!(out["content"], "hello");
+        let raw = out.raw.expect("raw send payload");
+        assert_eq!(raw["channel"], "telegram");
+        assert_eq!(raw["content"], "hello");
+    }
+
+    #[tokio::test]
+    async fn manager_wraps_thread_and_discord_backend_methods() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+
+        assert!(
+            manager
+                .send_reaction("discord", serde_json::json!({}))
+                .await
+                .unwrap()
+                .success
+        );
+        assert_eq!(
+            manager
+                .create_thread("discord", "Demo")
+                .await
+                .unwrap()
+                .thread_id,
+            "thread-1"
+        );
+        assert_eq!(
+            manager
+                .update_thread("discord", "thread-2", "archive")
+                .await
+                .unwrap()
+                .thread_id,
+            "thread-2"
+        );
+        assert_eq!(
+            manager
+                .list_threads("discord", Some(true))
+                .await
+                .unwrap()
+                .threads
+                .len(),
+            1
+        );
+        assert_eq!(
+            manager.discord_list_guilds().await.unwrap().guilds[0].id,
+            "guild-1"
+        );
+        assert_eq!(
+            manager
+                .discord_list_channels("guild-1")
+                .await
+                .unwrap()
+                .channels[0]
+                .id,
+            "channel-1"
+        );
+        assert!(
+            manager
+                .discord_check_permissions("guild-1", "channel-1")
+                .await
+                .unwrap()
+                .can_send_messages
+        );
     }
 }
