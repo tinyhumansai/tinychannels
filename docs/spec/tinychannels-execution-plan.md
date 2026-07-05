@@ -69,8 +69,9 @@ publishes that envelope on `ChannelMessageReceived` events. OpenHuman's relay
 inbound handler accepts authenticated relay envelopes and forwards them to the
 existing dispatch bus. OpenHuman now projects outbound intents into Hermes
 relay `send` actions and routes sends through a live relay transport for
-configured relay identities. Provider wire extraction and deeper session-key
-adoption remain pending:
+configured relay identities. OpenHuman memory conversation persistence records
+TinyChannels session keys as migration metadata, while full session identity
+switchover and provider wire extraction remain pending:
 
 | Surface | Status |
 | --- | --- |
