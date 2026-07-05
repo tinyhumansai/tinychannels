@@ -23,6 +23,7 @@ pub use capabilities::{
 pub use envelope::{
     AccessContext, ChannelInboundEnvelope, GroupAccessPolicy, InboundMediaPayload, MediaKind,
     MediaReference, MentionGate, SenderDmDecision, inbound_envelope_from_legacy_message,
+    legacy_message_from_inbound_envelope,
 };
 pub use error::{ChannelSendError, SendErrorKind, classify_send_error, is_chat_level_not_found};
 pub use intent::{

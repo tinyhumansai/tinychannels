@@ -335,6 +335,30 @@ fn legacy_inbound_envelope_preserves_telegram_topics_separately_from_threads() {
 }
 
 #[test]
+fn legacy_inbound_envelope_projects_back_to_legacy_messages() {
+    let msg = ChannelMessage {
+        id: "msg-1".into(),
+        channel: "telegram".into(),
+        sender: "alice".into(),
+        content: "hello".into(),
+        reply_target: "-100123".into(),
+        timestamp: 123,
+        thread_ts: Some("topic-99".into()),
+    };
+    let envelope = inbound_envelope_from_legacy_message(&msg);
+
+    let projected = legacy_message_from_inbound_envelope(&envelope, 456);
+
+    assert_eq!(projected.id, "msg-1");
+    assert_eq!(projected.channel, "telegram");
+    assert_eq!(projected.sender, "alice");
+    assert_eq!(projected.content, "hello");
+    assert_eq!(projected.reply_target, "-100123");
+    assert_eq!(projected.thread_ts.as_deref(), Some("topic-99"));
+    assert_eq!(projected.timestamp, 456);
+}
+
+#[test]
 fn legacy_inbound_envelope_preserves_non_telegram_threads() {
     let msg = ChannelMessage {
         id: "msg-1".into(),

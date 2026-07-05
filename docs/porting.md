@@ -70,7 +70,8 @@ The spec's redesigned local core through Phase 5 is implemented in this crate.
 OpenHuman now depends on this crate through a path dependency and has adopted
 the shared traits, controller metadata/types, config structs, runtime helpers,
 text chunker, send idempotency bridge, relay runtime config shape, and legacy
-inbound envelope projection. OpenHuman relay runtime adoption, provider wire
+inbound envelope projection. OpenHuman has a relay inbound handler seam for
+authenticated envelope frames; live relay socket startup, provider wire
 adapters, and full session-key adoption are still pending.
 
 The phase-by-phase implementation plan, known-bug list, and test-migration

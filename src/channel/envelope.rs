@@ -190,3 +190,24 @@ pub fn inbound_envelope_from_legacy_message(msg: &ChannelMessage) -> ChannelInbo
         ..Default::default()
     }
 }
+
+/// Project a normalized inbound envelope back into the legacy host
+/// `ChannelMessage` shape used by existing OpenHuman dispatch loops.
+pub fn legacy_message_from_inbound_envelope(
+    envelope: &ChannelInboundEnvelope,
+    timestamp: u64,
+) -> ChannelMessage {
+    ChannelMessage {
+        id: envelope.message_id.clone(),
+        sender: envelope.sender.id.clone(),
+        reply_target: envelope.conversation.id.clone(),
+        content: envelope.text.clone(),
+        channel: envelope.channel.id.clone(),
+        timestamp,
+        thread_ts: envelope
+            .conversation
+            .topic_id
+            .clone()
+            .or_else(|| envelope.conversation.thread_id.clone()),
+    }
+}
