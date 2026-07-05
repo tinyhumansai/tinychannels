@@ -15,6 +15,21 @@ fn durable_final_delivery_capabilities_match_openclaw_order() {
 }
 
 #[test]
+fn message_action_names_preserve_openclaw_contract_order() {
+    assert_eq!(channel_message_action_names().len(), 57);
+    assert_eq!(channel_message_action_names()[0], "send");
+    assert_eq!(channel_message_action_names()[20], "list-pins");
+    assert_eq!(channel_message_action_names()[56], "upload-file");
+    assert_eq!(
+        channel_message_action_names()
+            .iter()
+            .filter(|name| **name == "set-profile")
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn access_context_never_serializes_upstream_relay_trust_flag() {
     let access = AccessContext {
         delivered_via_upstream_relay: true,

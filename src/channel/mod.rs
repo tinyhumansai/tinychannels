@@ -10,9 +10,9 @@ pub mod types;
 
 pub use crate::traits::{Channel, ChannelMessage, SendMessage};
 pub use capabilities::{
-    ChannelPresentationCapabilities, ChannelStaticCapabilities, DurableFinalDeliveryCapability,
-    DurableFinalDeliveryRequirementMap, LengthUnit, MarkdownDialect,
-    durable_final_delivery_capabilities,
+    CHANNEL_MESSAGE_ACTION_NAMES, ChannelPresentationCapabilities, ChannelStaticCapabilities,
+    DurableFinalDeliveryCapability, DurableFinalDeliveryRequirementMap, LengthUnit,
+    MarkdownDialect, channel_message_action_names, durable_final_delivery_capabilities,
 };
 pub use envelope::{
     AccessContext, ChannelInboundEnvelope, GroupAccessPolicy, InboundMediaPayload, MediaKind,
