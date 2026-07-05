@@ -1,5 +1,8 @@
-//! Channels configuration (Telegram, Discord, Slack, Matrix, etc.) and security/sandbox.
+//! Channel provider configuration for portable OpenHuman channel surfaces.
 
+use crate::relay::{
+    DEFAULT_UPGRADE_TTL_SECONDS, RelayIdentity, RelayReconnectPolicy, RelayTransportTimeouts,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +26,8 @@ pub struct ChannelsConfig {
     pub dingtalk: Option<DingTalkConfig>,
     pub qq: Option<QQConfig>,
     pub yuanbao: Option<YuanbaoConfig>,
+    #[serde(default)]
+    pub relay: Option<RelayRuntimeConfig>,
     #[serde(default = "default_channel_message_timeout_secs")]
     pub message_timeout_secs: u64,
     /// The user's preferred *external* channel for proactive messages
@@ -46,6 +51,11 @@ fn default_channel_message_timeout_secs() -> u64 {
 impl ChannelsConfig {
     /// Whether any configured integration needs a listener runtime.
     /// Used to avoid spawning the channel runtime when only RPC/outbound paths are needed.
+    ///
+    /// `webhook` is intentionally omitted: it is push-based and owned by the
+    /// host HTTP server, so enabling it should not spawn a polling/listener
+    /// worker from the channel runtime.
+    ///
     pub fn has_listening_integrations(&self) -> bool {
         self.telegram.is_some()
             || self.discord.is_some()
@@ -62,6 +72,10 @@ impl ChannelsConfig {
             || self.yuanbao.is_some()
             || self.matrix.is_some()
             || self.whatsapp.is_some()
+            || self
+                .relay
+                .as_ref()
+                .is_some_and(RelayRuntimeConfig::is_listener_configured)
     }
 }
 
@@ -85,10 +99,64 @@ impl Default for ChannelsConfig {
             dingtalk: None,
             qq: None,
             yuanbao: None,
+            relay: None,
             message_timeout_secs: default_channel_message_timeout_secs(),
             active_channel: None,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct RelayRuntimeConfig {
+    pub url: String,
+    pub gateway_id: Option<String>,
+    pub upgrade_secret: Option<String>,
+    #[serde(default = "default_relay_upgrade_ttl_seconds")]
+    pub upgrade_ttl_seconds: i64,
+    pub identities: Vec<RelayRuntimeIdentityConfig>,
+    pub timeouts: RelayTransportTimeouts,
+    pub reconnect: RelayReconnectPolicy,
+}
+
+impl Default for RelayRuntimeConfig {
+    fn default() -> Self {
+        Self {
+            url: String::new(),
+            gateway_id: None,
+            upgrade_secret: None,
+            upgrade_ttl_seconds: default_relay_upgrade_ttl_seconds(),
+            identities: Vec::new(),
+            timeouts: RelayTransportTimeouts::default(),
+            reconnect: RelayReconnectPolicy::default(),
+        }
+    }
+}
+
+impl RelayRuntimeConfig {
+    pub fn is_listener_configured(&self) -> bool {
+        !self.url.trim().is_empty() && !self.identities.is_empty()
+    }
+
+    pub fn relay_identities(&self) -> Vec<RelayIdentity> {
+        self.identities
+            .iter()
+            .map(|identity| RelayIdentity {
+                platform: identity.platform.clone(),
+                bot_id: identity.bot_id.clone(),
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RelayRuntimeIdentityConfig {
+    pub platform: String,
+    pub bot_id: String,
+}
+
+fn default_relay_upgrade_ttl_seconds() -> i64 {
+    DEFAULT_UPGRADE_TTL_SECONDS
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, JsonSchema)]
@@ -296,7 +364,7 @@ impl WhatsAppConfig {
         } else if self.session_path.is_some() {
             "web"
         } else {
-            "cloud"
+            "unconfigured"
         }
     }
 
@@ -362,84 +430,6 @@ pub struct LarkConfig {
     pub receive_mode: LarkReceiveMode,
     #[serde(default)]
     pub port: Option<u16>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
-pub struct SecurityConfig {
-    #[serde(default)]
-    pub sandbox: SandboxConfig,
-    #[serde(default)]
-    pub resources: ResourceLimitsConfig,
-    #[serde(default)]
-    pub audit: AuditConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(default)]
-pub struct SandboxConfig {
-    #[serde(default)]
-    pub enabled: Option<bool>,
-    #[serde(default)]
-    pub backend: SandboxBackend,
-    #[serde(default)]
-    pub firejail_args: Vec<String>,
-}
-
-impl Default for SandboxConfig {
-    fn default() -> Self {
-        Self {
-            enabled: None,
-            backend: SandboxBackend::Auto,
-            firejail_args: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum SandboxBackend {
-    #[default]
-    Auto,
-    Landlock,
-    Firejail,
-    Bubblewrap,
-    Docker,
-    None,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-#[serde(default)]
-pub struct ResourceLimitsConfig {}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(default)]
-pub struct AuditConfig {
-    #[serde(default = "default_audit_enabled")]
-    pub enabled: bool,
-    #[serde(default = "default_audit_log_path")]
-    pub log_path: String,
-    #[serde(default = "default_audit_max_size_mb")]
-    pub max_size_mb: u32,
-}
-
-fn default_audit_enabled() -> bool {
-    true
-}
-fn default_audit_log_path() -> String {
-    "audit.log".to_string()
-}
-fn default_audit_max_size_mb() -> u32 {
-    100
-}
-
-impl Default for AuditConfig {
-    fn default() -> Self {
-        Self {
-            enabled: default_audit_enabled(),
-            log_path: default_audit_log_path(),
-            max_size_mb: default_audit_max_size_mb(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

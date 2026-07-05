@@ -1,9 +1,12 @@
 //! Channel definitions: metadata the UI needs to render setup forms and manage connections.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::config::ChannelsConfig;
+
 /// Which authentication mode a channel connection uses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum ChannelAuthMode {
     /// User provides an API key or access token.
     #[serde(rename = "api_key")]
@@ -45,7 +48,7 @@ impl std::str::FromStr for ChannelAuthMode {
 }
 
 /// A single field the UI must collect for a given auth mode.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FieldRequirement {
     /// Machine key, e.g. `"bot_token"`, `"api_key"`.
     pub key: &'static str,
@@ -66,7 +69,7 @@ pub struct FieldRequirement {
 }
 
 /// Describes one auth mode a channel supports.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AuthModeSpec {
     /// Which auth mode this spec describes.
     pub mode: ChannelAuthMode,
@@ -82,7 +85,7 @@ pub struct AuthModeSpec {
 }
 
 /// Runtime capabilities a channel may support.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ChannelCapability {
     SendText,
@@ -96,7 +99,7 @@ pub enum ChannelCapability {
 }
 
 /// Complete definition of a supported channel, suitable for UI rendering.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ChannelDefinition {
     /// Machine identifier, e.g. `"telegram"`, `"discord"`.
     pub id: &'static str,
@@ -157,7 +160,12 @@ impl ChannelDefinition {
     }
 }
 
-/// Return the static registry of all supported channel definitions.
+/// Return the static registry of UI-connectable channel definitions.
+///
+/// This registry is intentionally smaller than `ChannelsConfig`: it lists the
+/// channels currently exposed through the setup UI. `web` is app-owned and has
+/// no config struct here; several config-backed providers remain hidden until
+/// their setup flows are promoted into this registry.
 pub fn all_channel_definitions() -> Vec<ChannelDefinition> {
     vec![
         telegram_definition(),
@@ -176,6 +184,32 @@ pub fn find_channel_definition(channel_id: &str) -> Option<ChannelDefinition> {
     all_channel_definitions()
         .into_iter()
         .find(|d| d.id == channel_id)
+}
+
+/// Whether the supplied channel/auth-mode is connected by runtime config.
+pub fn channel_config_connected(
+    channels: &ChannelsConfig,
+    channel_id: &str,
+    mode: ChannelAuthMode,
+) -> bool {
+    match (channel_id, mode) {
+        ("telegram", ChannelAuthMode::BotToken) => channels.telegram.is_some(),
+        ("discord", ChannelAuthMode::BotToken) => channels.discord.is_some(),
+        ("slack", _) => channels.slack.is_some(),
+        ("mattermost", _) => channels.mattermost.is_some(),
+        ("imessage", ChannelAuthMode::ManagedDm) => channels.imessage.is_some(),
+        ("matrix", _) => channels.matrix.is_some(),
+        ("signal", _) => channels.signal.is_some(),
+        ("whatsapp", _) => channels.whatsapp.is_some(),
+        ("linq", _) => channels.linq.is_some(),
+        ("email", _) => channels.email.is_some(),
+        ("irc", _) => channels.irc.is_some(),
+        ("lark", _) => channels.lark.is_some(),
+        ("dingtalk", _) => channels.dingtalk.is_some(),
+        ("qq", _) => channels.qq.is_some(),
+        ("yuanbao", ChannelAuthMode::ApiKey) => channels.yuanbao.is_some(),
+        _ => false,
+    }
 }
 
 fn telegram_definition() -> ChannelDefinition {

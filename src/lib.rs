@@ -1,23 +1,33 @@
 //! Pluggable channel and messaging primitives for OpenHuman harness
 //! communication.
 //!
-//! This crate is intentionally blank scaffolding. Module boundaries are reserved
-//! for the channel-to-harness communication layer, but public behavior should be
-//! added only when the OpenHuman integration contract is concrete.
+//! TinyChannels owns portable channel configuration, controller metadata,
+//! runtime helpers, and the backend boundary that OpenHuman implements for
+//! channel side effects.
 
+pub mod adapters;
 pub mod backend;
 pub mod channel;
 pub mod config;
 pub mod context;
 pub mod controllers;
+pub mod delivery;
 pub mod error;
 pub mod harness;
+pub mod relay;
 pub mod routes;
 pub mod runtime;
+pub mod text;
 pub mod traits;
 
 pub use backend::{ChannelBackend, ChannelManager};
+pub use channel::{
+    ChannelInboundEnvelope, ChannelOutboundIntent, DeliveryDurability, OutboundPayload,
+    build_session_key_for_inbound_envelope, inbound_envelope_from_legacy_message,
+    legacy_message_from_inbound_envelope, legacy_message_value_from_outbound_intent,
+    outbound_intent_from_legacy_message, outbound_intent_from_send_message,
+};
 pub use config::ChannelsConfig;
 pub use controllers::{ChannelAuthMode, ChannelDefinition};
 pub use error::{Result, TinyChannelsError};
-pub use traits::{Channel, ChannelMessage, SendMessage};
+pub use traits::{Channel, ChannelMessage, ChannelSendExt, SendMessage};

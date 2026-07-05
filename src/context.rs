@@ -1,5 +1,6 @@
 //! Shared channel runtime helpers.
 
+use crate::text::truncate_with_ellipsis;
 use crate::traits::ChannelMessage;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -73,6 +74,8 @@ pub fn conversation_memory_key(msg: &ChannelMessage) -> String {
 
 pub fn conversation_history_key(msg: &ChannelMessage) -> String {
     let base_key = format!("{}_{}_{}", msg.channel, msg.sender, msg.reply_target);
+    // Telegram uses thread_ts as a reply target for topics, not as a distinct
+    // conversation boundary.
     if msg.channel == "telegram" {
         return base_key;
     }
@@ -197,21 +200,6 @@ pub async fn build_memory_context(
     context
 }
 
-fn truncate_with_ellipsis(input: &str, max_chars: usize) -> String {
-    let mut iter = input.chars();
-    let mut out = String::new();
-    for _ in 0..max_chars {
-        let Some(ch) = iter.next() else {
-            return input.to_string();
-        };
-        out.push(ch);
-    }
-    if iter.next().is_some() {
-        out.push('…');
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -250,6 +238,13 @@ mod tests {
         assert_eq!(
             conversation_history_key(&discord),
             "discord_bob_channel1_thread:thread1"
+        );
+
+        let mut telegram_topic = message("telegram", "alice", "-100123");
+        telegram_topic.thread_ts = Some("topic-99".into());
+        assert_eq!(
+            conversation_history_key(&telegram_topic),
+            "telegram_alice_-100123"
         );
     }
 

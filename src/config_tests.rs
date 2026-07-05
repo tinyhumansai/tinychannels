@@ -84,6 +84,71 @@ fn has_listening_integrations_detects_slack() {
 }
 
 #[test]
+fn has_listening_integrations_ignores_push_webhook() {
+    let cfg = ChannelsConfig {
+        webhook: Some(WebhookConfig {
+            port: 8080,
+            secret: Some("secret".into()),
+        }),
+        ..Default::default()
+    };
+    assert!(!cfg.has_listening_integrations());
+}
+
+#[test]
+fn has_listening_integrations_ignores_incomplete_relay_config() {
+    let cfg = ChannelsConfig {
+        relay: Some(RelayRuntimeConfig {
+            url: "wss://relay.example.test".into(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    assert!(!cfg.has_listening_integrations());
+}
+
+#[test]
+fn has_listening_integrations_detects_relay_runtime() {
+    let cfg = ChannelsConfig {
+        relay: Some(RelayRuntimeConfig {
+            url: "wss://relay.example.test".into(),
+            identities: vec![RelayRuntimeIdentityConfig {
+                platform: "telegram".into(),
+                bot_id: "bot-1".into(),
+            }],
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    assert!(cfg.has_listening_integrations());
+}
+
+#[test]
+fn relay_runtime_config_deserializes_with_defaults_and_identities() {
+    let toml = r#"
+        url = "https://relay.example.test"
+        gateway_id = "gateway-1"
+        upgrade_secret = "secret"
+
+        [[identities]]
+        platform = "telegram"
+        bot_id = "bot-1"
+    "#;
+
+    let cfg: RelayRuntimeConfig = toml::from_str(toml).unwrap();
+    let identities = cfg.relay_identities();
+
+    assert_eq!(cfg.url, "https://relay.example.test");
+    assert_eq!(cfg.gateway_id.as_deref(), Some("gateway-1"));
+    assert_eq!(cfg.upgrade_ttl_seconds, 300);
+    assert_eq!(cfg.timeouts.handshake_ms, 30_000);
+    assert_eq!(cfg.reconnect.backoff_ms, 1_000);
+    assert_eq!(identities.len(), 1);
+    assert_eq!(identities[0].platform, "telegram");
+    assert_eq!(identities[0].bot_id, "bot-1");
+}
+
+#[test]
 fn stream_mode_default_is_off() {
     assert_eq!(StreamMode::default(), StreamMode::Off);
 }
@@ -123,9 +188,9 @@ fn whatsapp_backend_type_web_when_session_path() {
 }
 
 #[test]
-fn whatsapp_backend_type_defaults_to_cloud() {
+fn whatsapp_backend_type_reports_unconfigured() {
     let cfg = empty_whatsapp();
-    assert_eq!(cfg.backend_type(), "cloud");
+    assert_eq!(cfg.backend_type(), "unconfigured");
 }
 
 #[test]
@@ -147,22 +212,6 @@ fn whatsapp_is_web_config() {
     cfg.session_path = Some("/path".into());
     assert!(cfg.is_web_config());
     assert!(!empty_whatsapp().is_web_config());
-}
-
-#[test]
-fn security_config_defaults() {
-    let sec = SecurityConfig::default();
-    assert!(sec.audit.enabled);
-    assert_eq!(sec.audit.log_path, "audit.log");
-    assert_eq!(sec.audit.max_size_mb, 100);
-}
-
-#[test]
-fn sandbox_config_default() {
-    let sb = SandboxConfig::default();
-    assert!(sb.enabled.is_none());
-    assert!(matches!(sb.backend, SandboxBackend::Auto));
-    assert!(sb.firejail_args.is_empty());
 }
 
 #[test]
