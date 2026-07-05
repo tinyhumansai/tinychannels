@@ -17,10 +17,10 @@ The companion research spec is
 The OpenHuman-side integration plan lives in
 `openhuman-4/docs/plans/tinychannels-integration.md`.
 
-## Current State (audited 2026-07-04; Phases 0-3 local slices landed)
+## Current State (audited 2026-07-04; Phases 0-4 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 87 unit tests. Phase 0 hygiene has landed: sandbox-only
+clean) and passes 104 unit tests. Phase 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
 Yuanbao connect credentials are normalized through `YuanbaoConfig`, controller
@@ -37,8 +37,12 @@ newline/paragraph mode, chunk-limit resolution, and the moved
 `truncate_with_ellipsis` helper. Phase 3's adapter and harness bridge contracts
 have landed: `ChannelAdapter`, optional extension traits, receive-ack policy,
 account status snapshots, `ChannelTurn`, `ChannelOutputEvent`, and
-capability-driven output-to-intent translation are in place. OpenHuman does not
-yet depend on these types, so cross-repo integration remains pending:
+capability-driven output-to-intent translation are in place. Phase 4's durable
+delivery queue has landed in `src/delivery/`: the host-owned storage trait,
+write-ahead queue operations, retry/backoff policy, permanent-error classifier,
+unknown-send reconciliation, targeted drains, and durable-capability negotiation
+are covered by unit tests. OpenHuman does not yet depend on these types, so
+cross-repo integration remains pending:
 
 | Surface | Status |
 | --- | --- |
@@ -52,6 +56,7 @@ yet depend on these types, so cross-repo integration remains pending:
 | Error taxonomy | Phase 1 send taxonomy landed and `TinyChannelsError` wraps structured send errors |
 | Chunking / length units | Phase 2 text engine landed in `src/text/` with UTF-16/fence/indicator tests |
 | Adapter / harness bridge | Phase 3 landed in `src/channel/adapter.rs` and `src/harness/` |
+| Durable delivery queue | Phase 4 landed in `src/delivery/` with backoff/permanent-error/reconciliation tests |
 | Relay contract | **Not started** |
 | `tests/` integration dir | Empty |
 
@@ -202,6 +207,8 @@ Create the spec's modules with these verified upstream shapes:
 
 ### Phase 4 — Durable delivery queue (`src/delivery/`)
 
+- **Landed locally:** `src/delivery/` now exposes the storage-agnostic queue
+  engine, policy helpers, reconciliation verdicts, and fixture-style tests.
 - Write-ahead state machine behind a `DeliveryQueueStore` trait (host owns
   storage): enqueue before send; ack on success/abort; fail on throw/partial.
 - Retry policy as fixtures-backed constants: `MAX_RETRIES = 5`, backoff

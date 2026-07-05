@@ -5,10 +5,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Delivery durability requested by core when sending agent output.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum DeliveryDurability {
     Required,
+    #[default]
     BestEffort,
     Disabled,
 }
@@ -53,4 +54,20 @@ pub struct ChannelOutboundIntent {
     pub thread_id: Option<String>,
     pub durability: DeliveryDurability,
     pub payload: OutboundPayload,
+}
+
+impl Default for ChannelOutboundIntent {
+    fn default() -> Self {
+        Self {
+            idempotency_key: String::new(),
+            channel_id: String::new(),
+            conversation_id: String::new(),
+            reply_to_id: None,
+            thread_id: None,
+            durability: DeliveryDurability::BestEffort,
+            payload: OutboundPayload::Text {
+                text: String::new(),
+            },
+        }
+    }
 }
