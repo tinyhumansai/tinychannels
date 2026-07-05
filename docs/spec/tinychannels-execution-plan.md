@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 132 default unit tests, or 134 with `--all-features`. Phase
+clean) and passes 133 default unit tests, or 135 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -54,8 +54,8 @@ buffered ACK flows.
 OpenHuman now depends on the crate through a path dependency and has adopted
 the shared traits, controller metadata/types, config structs, runtime helpers,
 text chunker, and `ChannelBackend` implementation. Provider wire extraction,
-the first manager-routed `test` controller path, relay runtime adoption, and
-deeper envelope/session migration remain pending:
+the first manager-routed `status`/`test` controller paths, relay runtime
+adoption, and deeper envelope/session migration remain pending:
 
 | Surface | Status |
 | --- | --- |

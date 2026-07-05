@@ -203,6 +203,10 @@ impl<B: ChannelBackend> ChannelManager<B> {
     }
 
     pub async fn status(&self, channel: Option<&str>) -> anyhow::Result<Vec<ChannelStatusEntry>> {
+        if let Some(channel) = channel {
+            self.describe(channel)
+                .ok_or_else(|| anyhow::anyhow!("unknown channel: {channel}"))?;
+        }
         self.backend.channel_status(&self.config, channel).await
     }
 
@@ -397,9 +401,19 @@ mod tests {
         async fn channel_status(
             &self,
             _config: &ChannelsConfig,
-            _channel: Option<&str>,
+            channel: Option<&str>,
         ) -> anyhow::Result<Vec<ChannelStatusEntry>> {
-            unimplemented!("not used by this test")
+            self.calls
+                .lock()
+                .unwrap()
+                .push(format!("status:{}", channel.unwrap_or("*")));
+            Ok(vec![ChannelStatusEntry {
+                channel_id: channel.unwrap_or("telegram").to_string(),
+                auth_mode: ChannelAuthMode::BotToken,
+                connected: true,
+                has_credentials: true,
+                error: None,
+            }])
         }
 
         async fn test_channel(
@@ -632,6 +646,22 @@ mod tests {
         assert_eq!(
             manager.backend.calls.lock().unwrap().as_slice(),
             ["test:telegram"]
+        );
+    }
+
+    #[tokio::test]
+    async fn status_validates_filtered_channel_before_delegating() {
+        let manager = ChannelManager::new(ChannelsConfig::default(), RecordingBackend::default());
+        let err = manager.status(Some("unknown")).await.unwrap_err();
+        assert_eq!(err.to_string(), "unknown channel: unknown");
+        assert!(manager.backend.calls.lock().unwrap().is_empty());
+
+        let result = manager.status(Some("telegram")).await.unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].channel_id, "telegram");
+        assert_eq!(
+            manager.backend.calls.lock().unwrap().as_slice(),
+            ["status:telegram"]
         );
     }
 
