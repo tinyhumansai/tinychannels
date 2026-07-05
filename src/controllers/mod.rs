@@ -1,9 +1,11 @@
 //! Channel controller metadata and backend response types.
 
+pub mod credentials;
 pub mod definitions;
 pub mod schemas;
 pub mod types;
 
+pub use credentials::{channel_credential_provider, parse_allowed_users};
 pub use definitions::{
     AuthModeSpec, ChannelAuthMode, ChannelCapability, ChannelDefinition, FieldRequirement,
     all_channel_definitions, find_channel_definition,
