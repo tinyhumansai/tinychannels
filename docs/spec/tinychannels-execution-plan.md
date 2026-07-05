@@ -56,8 +56,8 @@ the shared traits, controller metadata/types, config structs, runtime helpers,
 text chunker, and `ChannelBackend` implementation. Provider wire extraction,
 the first manager-routed `list`/`describe`/`connect`/`status`/`set_default`/
 `test`/`get_default`, managed Telegram/Discord link, and reaction/thread
-controller paths, relay runtime adoption, and deeper envelope/session migration
-remain pending:
+controller paths plus Discord discovery, relay runtime adoption, and deeper
+envelope/session migration remain pending:
 
 | Surface | Status |
 | --- | --- |
