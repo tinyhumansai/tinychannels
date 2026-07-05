@@ -34,3 +34,29 @@ Provider wire implementations such as Telegram, Discord, Web, Email, Slack,
 Yuanbao, and others still depend directly on OpenHuman application services.
 Move them only after their app dependencies are reduced to transport/config
 traits that can live in this crate without importing OpenHuman internals.
+
+Per the 2026-07-04 audit, provider portability falls into a ladder:
+
+- Self-contained today (no cross-module OpenHuman imports): email, irc,
+  yuanbao, cli, imessage, mattermost, qq, dingtalk, presentation.
+- Need only a configured-HTTP-client trait (they import
+  `build_runtime_proxy_client`): discord, slack, whatsapp, lark, signal.
+- Need approval, voice/STT, pairing, and conversation-memory traits first:
+  telegram.
+- Not porting targets (they are the app-side consumers of this crate): the
+  `runtime/` dispatch engine and the `web` provider.
+
+## Current Status and Next Steps
+
+The spec's redesigned core (descriptors, envelopes, intents, receipts,
+capabilities, adapter trait, harness bridge, error taxonomy, chunking, relay)
+is **not implemented yet** — what exists is the legacy surface listed above.
+OpenHuman does not yet depend on this crate; the ported files are duplicated
+copies in both repos and will drift until the dependency lands.
+
+The phase-by-phase implementation plan, known-bug list, and test-migration
+plan live in
+[spec/tinychannels-execution-plan.md](spec/tinychannels-execution-plan.md).
+The OpenHuman-side integration plan (dependency adoption, duplicate deletion,
+`ChannelBackend` implementation) lives in
+`openhuman-4/docs/plans/tinychannels-integration.md`.

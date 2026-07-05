@@ -27,4 +27,9 @@ state remain outside this crate until they can be split behind transport traits.
 
 ## Research and Porting Specs
 
-- [OpenClaw and Hermes channel porting](openclaw-hermes-channel-porting.md)
+- [OpenClaw and Hermes channel porting](openclaw-hermes-channel-porting.md) —
+  source-level audit of both upstreams (verified against pinned 2026-07-04
+  checkouts) and the proposed TinyChannels contract.
+- [TinyChannels execution plan](tinychannels-execution-plan.md) — the phased
+  implementation plan: current-state gap matrix, known bugs, module plan,
+  and test-migration/fixture catalog.
