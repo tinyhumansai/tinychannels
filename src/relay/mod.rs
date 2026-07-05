@@ -24,8 +24,9 @@ pub use frames::{
     GatewayToConnectorFrame, PassthroughForward,
 };
 pub use transport::{
-    RelayFrameIo, RelayIdentity, RelayInboundHandler, RelayInterruptInboundHandler,
-    RelayPassthroughHandler, RelayTransport, RelayTransportError, RelayTransportTimeouts,
+    RelayFrameDialer, RelayFrameIo, RelayIdentity, RelayInboundHandler,
+    RelayInterruptInboundHandler, RelayPassthroughHandler, RelayReconnectHandle,
+    RelayReconnectPolicy, RelayTransport, RelayTransportError, RelayTransportTimeouts,
 };
 #[cfg(feature = "relay-websocket")]
 pub use websocket::{

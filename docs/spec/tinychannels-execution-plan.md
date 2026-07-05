@@ -20,7 +20,7 @@ The OpenHuman-side integration plan lives in
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy
-clean) and passes 130 default unit tests, or 132 with `--all-features`. Phase
+clean) and passes 131 default unit tests, or 133 with `--all-features`. Phase
 0 hygiene has landed: sandbox-only
 config types were removed from this crate, webhook listener behavior is
 documented and tested, WhatsApp exposes an explicit unconfigured backend state,
@@ -48,13 +48,13 @@ delivery, and `src/relay/` ports Hermes' `CapabilityDescriptor`, projection
 defaults, sorted compact JSON, WS-upgrade HMAC token, delivery signature, replay
 window, multi-secret verification with byte-exact connector vectors, typed
 gateway/connector relay frame contracts, the request/response relay frame
-transport loop, and the feature-gated WebSocket dialer for descriptor, inbound,
-outbound result, passthrough-forward, interrupt, idle, and buffered ACK flows.
+transport loop, feature-gated WebSocket dialer, and reconnect supervisor for
+descriptor, inbound, outbound result, passthrough-forward, interrupt, idle, and
+buffered ACK flows.
 OpenHuman now depends on the crate through a path dependency and has adopted
 the shared traits, controller metadata/types, config structs, runtime helpers,
 text chunker, and `ChannelBackend` implementation. Provider wire extraction,
-the relay reconnect wrapper, and deeper envelope/session migration remain
-pending:
+relay runtime adoption, and deeper envelope/session migration remain pending:
 
 | Surface | Status |
 | --- | --- |
@@ -70,7 +70,7 @@ pending:
 | Adapter / harness bridge | Phase 3 landed in `src/channel/adapter.rs` and `src/harness/` |
 | Durable delivery queue | Phase 4 landed in `src/delivery/` with backoff/permanent-error/reconciliation tests |
 | Generic local adapter | Phase 5 `LocalChannelAdapter` landed in `src/adapters/` |
-| Relay contract | Phase 5 descriptor + HMAC auth + typed frame contract + frame transport loop + feature-gated WebSocket dialer landed; reconnect wrapper remains pending |
+| Relay contract | Phase 5 descriptor + HMAC auth + typed frame contract + frame transport loop + feature-gated WebSocket dialer + reconnect supervisor landed |
 | `tests/` integration dir | Empty |
 
 openhuman-4 now depends on this crate and re-exports the adopted surfaces from
@@ -254,9 +254,10 @@ Create the spec's modules with these verified upstream shapes:
   `test_descriptor.py` as byte-exact fixtures before writing the transport.
 - Concrete relay frame transport loop landed in `src/relay/transport.rs`;
   `src/relay/websocket.rs` adds the feature-gated WebSocket dialer, URL
-  normalization, newline-delimited JSON I/O, and upgrade bearer header. The
-  remaining relay runtime work is reconnect supervision. The typed frame
-  contract covers connector → gateway frames `descriptor`,
+  normalization, newline-delimited JSON I/O, and upgrade bearer header.
+  Reconnect supervision redials through a `RelayFrameDialer`, swaps the active
+  frame I/O, re-sends `hello`, and requires a fresh descriptor handshake. The
+  typed frame contract covers connector → gateway frames `descriptor`,
   `inbound(+bufferId ack)`, `going_idle_ack`, `outbound_result`,
   `interrupt_inbound`, and `passthrough_forward`, plus gateway → connector
   frames `hello`, `outbound`, `interrupt`, `going_idle`, and `inbound_ack`.

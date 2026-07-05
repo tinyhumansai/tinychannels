@@ -1,10 +1,10 @@
 use crate::relay::{
     AuthenticatedRelayInboundEvent, CONTRACT_VERSION, CapabilityDescriptor,
     ConnectorToGatewayFrame, DELIVERY_SIG_HEADER, DELIVERY_TS_HEADER, GatewayToConnectorFrame,
-    PassthroughForward, RelayDescriptorOptions, RelayFrameIo, RelayIdentity, RelayInboundHandler,
-    RelayPlatformEntry, RelayTransport, RelayTransportError, RelayTransportTimeouts,
-    delivery_payload, make_token_at, make_upgrade_token_at, sign, verify_delivery_signature_at,
-    verify_signature, verify_token_at,
+    PassthroughForward, RelayDescriptorOptions, RelayFrameDialer, RelayFrameIo, RelayIdentity,
+    RelayInboundHandler, RelayPlatformEntry, RelayReconnectPolicy, RelayTransport,
+    RelayTransportError, RelayTransportTimeouts, delivery_payload, make_token_at,
+    make_upgrade_token_at, sign, verify_delivery_signature_at, verify_signature, verify_token_at,
 };
 use async_trait::async_trait;
 use serde_json::json;
@@ -399,6 +399,11 @@ impl MemoryRelayIo {
             self.sent_notify.notified().await;
         }
     }
+
+    fn close(&self) {
+        self.closed.store(true, Ordering::SeqCst);
+        self.inbound_notify.notify_waiters();
+    }
 }
 
 #[async_trait]
@@ -435,6 +440,29 @@ impl RelayInboundHandler for RecordingInboundHandler {
     ) -> Result<(), RelayTransportError> {
         self.events.lock().expect("events lock").push(event);
         Ok(())
+    }
+}
+
+#[derive(Default)]
+struct QueueDialer {
+    ios: Mutex<VecDeque<Arc<MemoryRelayIo>>>,
+}
+
+impl QueueDialer {
+    fn push(&self, io: Arc<MemoryRelayIo>) {
+        self.ios.lock().expect("ios lock").push_back(io);
+    }
+}
+
+#[async_trait]
+impl RelayFrameDialer for QueueDialer {
+    async fn dial(&self) -> Result<Arc<dyn RelayFrameIo>, RelayTransportError> {
+        self.ios
+            .lock()
+            .expect("ios lock")
+            .pop_front()
+            .map(|io| io as Arc<dyn RelayFrameIo>)
+            .ok_or_else(|| RelayTransportError::Io("no relay io queued".into()))
     }
 }
 
@@ -596,6 +624,57 @@ async fn relay_transport_go_idle_waits_for_connector_ack() {
 
     io.push(ConnectorToGatewayFrame::GoingIdleAck).await;
     assert!(task.await.expect("task").expect("go idle"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn relay_transport_reconnect_supervisor_redials_and_rehandshakes() {
+    let first = Arc::new(MemoryRelayIo::default());
+    let second = Arc::new(MemoryRelayIo::default());
+    let dialer = Arc::new(QueueDialer::default());
+    dialer.push(second.clone());
+    let transport = Arc::new(discord_transport(first.clone()));
+
+    transport.connect().await.expect("connect");
+    first
+        .push(ConnectorToGatewayFrame::Descriptor {
+            descriptor: telegram_descriptor(),
+        })
+        .await;
+    assert_eq!(
+        transport.handshake().await.expect("initial handshake"),
+        telegram_descriptor()
+    );
+
+    let handle = transport.spawn_reconnect_supervisor(
+        dialer,
+        RelayReconnectPolicy {
+            backoff_ms: 1,
+            max_backoff_ms: 2,
+        },
+    );
+    first.close();
+
+    second.wait_for_sent_len(1).await;
+    assert_eq!(
+        second.sent(),
+        vec![GatewayToConnectorFrame::Hello {
+            platform: "discord".into(),
+            bot_id: "appShared".into()
+        }]
+    );
+
+    let mut descriptor = telegram_descriptor();
+    descriptor.label = "Discord Relay".into();
+    second
+        .push(ConnectorToGatewayFrame::Descriptor {
+            descriptor: descriptor.clone(),
+        })
+        .await;
+    assert_eq!(
+        transport.handshake().await.expect("reconnected handshake"),
+        descriptor
+    );
+    handle.abort();
 }
 
 #[cfg(feature = "relay-websocket")]

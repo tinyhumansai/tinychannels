@@ -13,11 +13,14 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use thiserror::Error;
 use tokio::sync::{Mutex, Notify, RwLock, oneshot};
-use tokio::time::{Duration, timeout};
+use tokio::task::JoinHandle;
+use tokio::time::{Duration, sleep, timeout};
 
 const DEFAULT_HANDSHAKE_TIMEOUT_MS: u64 = 30_000;
 const DEFAULT_OUTBOUND_TIMEOUT_MS: u64 = 30_000;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 10_000;
+const DEFAULT_RECONNECT_BACKOFF_MS: u64 = 1_000;
+const DEFAULT_RECONNECT_MAX_BACKOFF_MS: u64 = 30_000;
 
 /// One platform/bot identity advertised to the relay connector.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -47,6 +50,23 @@ impl Default for RelayTransportTimeouts {
     }
 }
 
+/// Reconnect backoff settings for relay runtimes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct RelayReconnectPolicy {
+    pub backoff_ms: u64,
+    pub max_backoff_ms: u64,
+}
+
+impl Default for RelayReconnectPolicy {
+    fn default() -> Self {
+        Self {
+            backoff_ms: DEFAULT_RECONNECT_BACKOFF_MS,
+            max_backoff_ms: DEFAULT_RECONNECT_MAX_BACKOFF_MS,
+        }
+    }
+}
+
 /// Errors surfaced by the relay transport loop.
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum RelayTransportError {
@@ -65,6 +85,12 @@ pub enum RelayTransportError {
 pub trait RelayFrameIo: Send + Sync {
     async fn send(&self, frame: GatewayToConnectorFrame) -> Result<(), RelayTransportError>;
     async fn recv(&self) -> Result<Option<ConnectorToGatewayFrame>, RelayTransportError>;
+}
+
+/// Dialer used by reconnect supervisors to acquire a fresh frame I/O.
+#[async_trait]
+pub trait RelayFrameDialer: Send + Sync {
+    async fn dial(&self) -> Result<Arc<dyn RelayFrameIo>, RelayTransportError>;
 }
 
 #[async_trait]
@@ -110,7 +136,7 @@ pub trait RelayInterruptInboundHandler: Send + Sync {
 /// Hermes-compatible relay transport loop over a frame I/O implementation.
 pub struct RelayTransport {
     identities: Vec<RelayIdentity>,
-    io: Arc<dyn RelayFrameIo>,
+    io: RwLock<Arc<dyn RelayFrameIo>>,
     timeouts: RelayTransportTimeouts,
     state: Arc<RelayTransportState>,
 }
@@ -123,23 +149,61 @@ impl RelayTransport {
     ) -> Self {
         Self {
             identities,
-            io,
+            io: RwLock::new(io),
             timeouts,
             state: Arc::new(RelayTransportState::default()),
         }
     }
 
     pub async fn connect(&self) -> Result<(), RelayTransportError> {
-        self.start_reader();
+        self.prepare_connect().await;
+        self.start_reader().await;
+        self.send_hellos().await
+    }
+
+    pub async fn reconnect_with_io(
+        &self,
+        io: Arc<dyn RelayFrameIo>,
+    ) -> Result<(), RelayTransportError> {
+        *self.io.write().await = io;
+        self.connect().await
+    }
+
+    pub fn spawn_reconnect_supervisor(
+        self: &Arc<Self>,
+        dialer: Arc<dyn RelayFrameDialer>,
+        policy: RelayReconnectPolicy,
+    ) -> RelayReconnectHandle {
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let task_shutdown = shutdown.clone();
+        let transport = self.clone();
+        let task = tokio::spawn(async move {
+            transport
+                .reconnect_loop(dialer, policy, task_shutdown)
+                .await;
+        });
+        RelayReconnectHandle { shutdown, task }
+    }
+
+    async fn prepare_connect(&self) {
+        self.state.closed.store(false, Ordering::SeqCst);
+        *self.state.descriptor.lock().await = None;
+    }
+
+    async fn send_hellos(&self) -> Result<(), RelayTransportError> {
+        let io = self.current_io().await;
         for identity in &self.identities {
-            self.io
-                .send(GatewayToConnectorFrame::Hello {
-                    platform: identity.platform.clone(),
-                    bot_id: identity.bot_id.clone(),
-                })
-                .await?;
+            io.send(GatewayToConnectorFrame::Hello {
+                platform: identity.platform.clone(),
+                bot_id: identity.bot_id.clone(),
+            })
+            .await?;
         }
         Ok(())
+    }
+
+    async fn current_io(&self) -> Arc<dyn RelayFrameIo> {
+        self.io.read().await.clone()
     }
 
     pub async fn handshake(&self) -> Result<CapabilityDescriptor, RelayTransportError> {
@@ -193,7 +257,8 @@ impl RelayTransport {
         session_key: impl Into<String>,
         reason: Option<String>,
     ) -> Result<(), RelayTransportError> {
-        self.io
+        self.current_io()
+            .await
             .send(GatewayToConnectorFrame::Interrupt {
                 session_key: session_key.into(),
                 reason,
@@ -207,7 +272,12 @@ impl RelayTransport {
             let mut waiter = self.state.going_idle.lock().await;
             *waiter = Some(tx);
         }
-        if let Err(error) = self.io.send(GatewayToConnectorFrame::GoingIdle).await {
+        if let Err(error) = self
+            .current_io()
+            .await
+            .send(GatewayToConnectorFrame::GoingIdle)
+            .await
+        {
             self.state.going_idle.lock().await.take();
             return Err(error);
         }
@@ -236,7 +306,7 @@ impl RelayTransport {
         *self.state.interrupt_handler.write().await = Some(handler);
     }
 
-    fn start_reader(&self) {
+    async fn start_reader(&self) {
         if self
             .state
             .reader_started
@@ -245,7 +315,7 @@ impl RelayTransport {
         {
             return;
         }
-        let io = self.io.clone();
+        let io = self.current_io().await;
         let state = self.state.clone();
         tokio::spawn(async move {
             let result = read_loop(io.clone(), state.clone()).await;
@@ -253,6 +323,47 @@ impl RelayTransport {
                 state.fail_waiters(error).await;
             }
         });
+    }
+
+    async fn reconnect_loop(
+        &self,
+        dialer: Arc<dyn RelayFrameDialer>,
+        policy: RelayReconnectPolicy,
+        shutdown: Arc<AtomicBool>,
+    ) {
+        let mut backoff_ms = policy.backoff_ms;
+        loop {
+            self.wait_closed().await;
+            if shutdown.load(Ordering::SeqCst) {
+                return;
+            }
+            sleep(Duration::from_millis(backoff_ms)).await;
+            if shutdown.load(Ordering::SeqCst) {
+                return;
+            }
+            match dialer.dial().await {
+                Ok(io) => match self.reconnect_with_io(io).await {
+                    Ok(()) => {
+                        backoff_ms = policy.backoff_ms;
+                    }
+                    Err(_) => {
+                        backoff_ms = next_backoff(backoff_ms, policy.max_backoff_ms);
+                    }
+                },
+                Err(_) => {
+                    backoff_ms = next_backoff(backoff_ms, policy.max_backoff_ms);
+                }
+            }
+        }
+    }
+
+    async fn wait_closed(&self) {
+        loop {
+            if self.state.closed.load(Ordering::SeqCst) {
+                return;
+            }
+            self.state.closed_ready.notified().await;
+        }
     }
 
     async fn request_response(
@@ -278,7 +389,8 @@ impl RelayTransport {
             .unwrap_or((None, None));
 
         let send_result = self
-            .io
+            .current_io()
+            .await
             .send(GatewayToConnectorFrame::Outbound {
                 request_id: request_id.clone(),
                 action,
@@ -311,6 +423,19 @@ impl RelayTransport {
     }
 }
 
+/// Handle for a spawned reconnect supervisor.
+pub struct RelayReconnectHandle {
+    shutdown: Arc<AtomicBool>,
+    task: JoinHandle<()>,
+}
+
+impl RelayReconnectHandle {
+    pub fn abort(&self) {
+        self.shutdown.store(true, Ordering::SeqCst);
+        self.task.abort();
+    }
+}
+
 #[derive(Default)]
 struct RelayTransportState {
     reader_started: AtomicBool,
@@ -318,6 +443,7 @@ struct RelayTransportState {
     request_counter: AtomicU64,
     descriptor: Mutex<Option<CapabilityDescriptor>>,
     descriptor_ready: Notify,
+    closed_ready: Notify,
     pending: Mutex<HashMap<String, oneshot::Sender<Value>>>,
     going_idle: Mutex<Option<oneshot::Sender<()>>>,
     inbound_handler: RwLock<Option<Arc<dyn RelayInboundHandler>>>,
@@ -333,10 +459,16 @@ impl RelayTransportState {
 
     async fn fail_waiters(&self, _error: RelayTransportError) {
         self.closed.store(true, Ordering::SeqCst);
+        self.reader_started.store(false, Ordering::SeqCst);
         self.pending.lock().await.clear();
         self.going_idle.lock().await.take();
         self.descriptor_ready.notify_waiters();
+        self.closed_ready.notify_waiters();
     }
+}
+
+fn next_backoff(current_ms: u64, max_ms: u64) -> u64 {
+    current_ms.saturating_mul(2).min(max_ms)
 }
 
 async fn read_loop(
