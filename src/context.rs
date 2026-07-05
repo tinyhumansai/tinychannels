@@ -73,9 +73,6 @@ pub fn conversation_memory_key(msg: &ChannelMessage) -> String {
 
 pub fn conversation_history_key(msg: &ChannelMessage) -> String {
     let base_key = format!("{}_{}_{}", msg.channel, msg.sender, msg.reply_target);
-    if msg.channel == "telegram" {
-        return base_key;
-    }
     if let Some(thread_ts) = msg.thread_ts.as_deref() {
         let thread_ts = thread_ts.trim();
         if !thread_ts.is_empty() {
@@ -250,6 +247,13 @@ mod tests {
         assert_eq!(
             conversation_history_key(&discord),
             "discord_bob_channel1_thread:thread1"
+        );
+
+        let mut telegram_topic = message("telegram", "alice", "-100123");
+        telegram_topic.thread_ts = Some("topic-99".into());
+        assert_eq!(
+            conversation_history_key(&telegram_topic),
+            "telegram_alice_-100123_thread:topic-99"
         );
     }
 
