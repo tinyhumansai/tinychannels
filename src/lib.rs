@@ -14,6 +14,7 @@ pub mod controllers;
 pub mod delivery;
 pub mod error;
 pub mod harness;
+pub mod providers;
 pub mod relay;
 pub mod routes;
 pub mod runtime;
@@ -30,4 +31,5 @@ pub use channel::{
 pub use config::ChannelsConfig;
 pub use controllers::{ChannelAuthMode, ChannelDefinition};
 pub use error::{Result, TinyChannelsError};
+pub use providers::{SignalChannel, SlackChannel, WhatsAppChannel};
 pub use traits::{Channel, ChannelMessage, ChannelSendExt, SendMessage};
