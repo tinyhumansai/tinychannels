@@ -19,6 +19,7 @@ pub mod controllers;
 pub mod delivery;
 pub mod error;
 pub mod harness;
+pub mod host;
 pub mod providers;
 pub mod relay;
 pub mod routes;
@@ -36,6 +37,7 @@ pub use channel::{
 pub use config::ChannelsConfig;
 pub use controllers::{ChannelAuthMode, ChannelDefinition};
 pub use error::{Result, TinyChannelsError};
+pub use host::{ChannelHost, ChannelHostBuilder, HostCapabilities, NoopHost, ProviderContext};
 pub use providers::{
     DingTalkChannel, DiscordChannel, EmailChannel, IMessageChannel, IrcChannel, IrcChannelConfig,
     LarkChannel, LinqChannel, MattermostChannel, QQChannel, SignalChannel, SlackChannel,
