@@ -374,3 +374,13 @@ fn send_message_intent_preserves_legacy_typed_fields() {
     assert_eq!(payload["thread_ts"], "thread-1");
     assert_eq!(payload["idempotencyKey"], intent.idempotency_key);
 }
+
+#[test]
+fn send_message_intent_preserves_explicit_idempotency_key() {
+    let message = SendMessage::new("hello", "alice").with_idempotency_key("typed-key");
+    let intent = outbound_intent_from_send_message("discord", &message);
+    let payload = legacy_message_value_from_outbound_intent(&intent);
+
+    assert_eq!(intent.idempotency_key, "typed-key");
+    assert_eq!(payload["idempotencyKey"], "typed-key");
+}

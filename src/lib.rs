@@ -29,4 +29,4 @@ pub use channel::{
 pub use config::ChannelsConfig;
 pub use controllers::{ChannelAuthMode, ChannelDefinition};
 pub use error::{Result, TinyChannelsError};
-pub use traits::{Channel, ChannelMessage, SendMessage};
+pub use traits::{Channel, ChannelMessage, ChannelSendExt, SendMessage};

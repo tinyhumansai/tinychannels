@@ -9,7 +9,7 @@ pub mod receipt;
 pub mod session;
 pub mod types;
 
-pub use crate::traits::{Channel, ChannelMessage, SendMessage};
+pub use crate::traits::{Channel, ChannelMessage, ChannelSendExt, SendMessage};
 pub use adapter::{
     ChannelAdapter, ChannelDelete, ChannelDirectory, ChannelEdit, ChannelInboundSink,
     ChannelReaction, ChannelReceiveAckPolicy, ChannelResolver, ChannelSetup, ChannelStreamingDraft,

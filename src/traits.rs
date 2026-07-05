@@ -22,6 +22,8 @@ pub struct SendMessage {
     pub subject: Option<String>,
     /// Platform thread identifier for threaded replies (e.g. Slack `thread_ts`).
     pub thread_ts: Option<String>,
+    /// Caller-provided or generated idempotency key for retry-safe delivery.
+    pub idempotency_key: Option<String>,
 }
 
 impl SendMessage {
@@ -32,6 +34,7 @@ impl SendMessage {
             recipient: recipient.into(),
             subject: None,
             thread_ts: None,
+            idempotency_key: None,
         }
     }
 
@@ -46,12 +49,27 @@ impl SendMessage {
             recipient: recipient.into(),
             subject: Some(subject.into()),
             thread_ts: None,
+            idempotency_key: None,
         }
     }
 
     /// Set the thread identifier for threaded replies.
     pub fn in_thread(mut self, thread_ts: Option<String>) -> Self {
         self.thread_ts = thread_ts;
+        self
+    }
+
+    /// Set an explicit idempotency key for retry-safe delivery.
+    pub fn with_idempotency_key(mut self, idempotency_key: impl Into<String>) -> Self {
+        let idempotency_key = idempotency_key.into();
+        self.idempotency_key = (!idempotency_key.trim().is_empty()).then_some(idempotency_key);
+        self
+    }
+
+    /// Generate a deterministic idempotency key from this legacy send shape.
+    pub fn with_deterministic_idempotency_key(mut self, channel_id: impl AsRef<str>) -> Self {
+        let intent = crate::channel::outbound_intent_from_send_message(channel_id.as_ref(), &self);
+        self.idempotency_key = Some(intent.idempotency_key);
         self
     }
 }
@@ -136,6 +154,23 @@ pub trait Channel: Send + Sync {
     }
 }
 
+/// Extension helpers for legacy [`Channel::send`] callers that need the
+/// portable outbound-intent idempotency contract without changing provider
+/// implementations yet.
+#[async_trait]
+pub trait ChannelSendExt: Channel {
+    /// Build the outbound intent for a legacy send and pass its idempotency key
+    /// through [`SendMessage`] before delegating to [`Channel::send`].
+    async fn send_with_outbound_intent(&self, message: &SendMessage) -> anyhow::Result<()> {
+        let message = message
+            .clone()
+            .with_deterministic_idempotency_key(self.name());
+        self.send(&message).await
+    }
+}
+
+impl<T: Channel + ?Sized> ChannelSendExt for T {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,6 +224,34 @@ mod tests {
         assert_eq!(cloned.content, "ping");
         assert_eq!(cloned.channel, "dummy");
         assert_eq!(cloned.timestamp, 999);
+    }
+
+    #[test]
+    fn send_message_generates_deterministic_idempotency_key() {
+        let message = SendMessage::new("hello", "alice")
+            .in_thread(Some("thread-1".to_string()))
+            .with_deterministic_idempotency_key("telegram");
+        let again = SendMessage::new("hello", "alice")
+            .in_thread(Some("thread-1".to_string()))
+            .with_deterministic_idempotency_key("telegram");
+
+        assert_eq!(message.idempotency_key, again.idempotency_key);
+        assert!(
+            message
+                .idempotency_key
+                .as_deref()
+                .unwrap()
+                .starts_with("legacy-send:telegram:")
+        );
+    }
+
+    #[test]
+    fn explicit_send_message_idempotency_key_is_preserved() {
+        let message = SendMessage::new("hello", "alice")
+            .with_idempotency_key("caller-key")
+            .with_deterministic_idempotency_key("telegram");
+
+        assert_eq!(message.idempotency_key.as_deref(), Some("caller-key"));
     }
 
     #[tokio::test]

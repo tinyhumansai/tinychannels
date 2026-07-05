@@ -118,12 +118,17 @@ pub fn outbound_intent_from_send_message(
     channel_id: impl Into<String>,
     message: &SendMessage,
 ) -> ChannelOutboundIntent {
-    let body = serde_json::json!({
+    let mut body = serde_json::json!({
         "content": message.content,
         "recipient": message.recipient,
         "subject": message.subject,
         "thread_ts": message.thread_ts,
     });
+    if let Some(idempotency_key) = message.idempotency_key.as_deref()
+        && !idempotency_key.trim().is_empty()
+    {
+        body["idempotencyKey"] = Value::String(idempotency_key.to_string());
+    }
     outbound_intent_from_legacy_message(channel_id, body)
 }
 
