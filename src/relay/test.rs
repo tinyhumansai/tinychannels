@@ -802,3 +802,186 @@ fn websocket_config_projects_from_relay_runtime_config() {
     assert_eq!(websocket.upgrade_ttl_seconds, 123);
     let _dialer = crate::relay::WebSocketRelayDialer::new(websocket);
 }
+
+/// End-to-end loopback tests that dial the real WebSocket relay I/O against an
+/// in-process `tokio-tungstenite` server, exercising newline-delimited frame
+/// sequencing, upgrade-token authorization, and reconnect through the dialer.
+#[cfg(feature = "relay-websocket")]
+mod websocket_loopback {
+    use super::{SECRET, telegram_descriptor};
+    use crate::relay::{
+        ConnectorToGatewayFrame, GatewayToConnectorFrame, RelayFrameDialer, RelayFrameIo,
+        WebSocketRelayConfig, WebSocketRelayDialer, connect_websocket_relay_io, verify_token,
+    };
+    use futures_util::{SinkExt, StreamExt};
+    use serde_json::json;
+    use tokio::net::TcpListener;
+    use tokio_tungstenite::tungstenite::handshake::server::{ErrorResponse, Request, Response};
+    use tokio_tungstenite::tungstenite::http::StatusCode;
+    use tokio_tungstenite::tungstenite::http::header::AUTHORIZATION;
+    use tokio_tungstenite::tungstenite::protocol::Message;
+    use tokio_tungstenite::{accept_async, accept_hdr_async};
+
+    /// Accept only when the upgrade request carries a valid relay bearer token.
+    // The `Result<Response, ErrorResponse>` shape is fixed by tungstenite's
+    // handshake `Callback` contract, so the large error variant is unavoidable.
+    #[allow(clippy::result_large_err)]
+    fn authorize(request: &Request, response: Response) -> Result<Response, ErrorResponse> {
+        let authorized = request
+            .headers()
+            .get(AUTHORIZATION)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.strip_prefix("Bearer "))
+            .and_then(|token| verify_token(token, &[SECRET]))
+            .is_some();
+        if authorized {
+            Ok(response)
+        } else {
+            let mut error = ErrorResponse::new(Some("unauthorized".to_string()));
+            *error.status_mut() = StatusCode::UNAUTHORIZED;
+            Err(error)
+        }
+    }
+
+    fn hello() -> GatewayToConnectorFrame {
+        GatewayToConnectorFrame::Hello {
+            platform: "telegram".into(),
+            bot_id: "bot-1".into(),
+        }
+    }
+
+    #[tokio::test]
+    async fn roundtrips_frames_in_order_over_a_real_socket() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("local addr");
+
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await.expect("accept tcp");
+            let mut ws = accept_async(tcp).await.expect("server handshake");
+
+            // Two connector frames delivered in a single text message; the
+            // client must split on newlines and preserve order.
+            let descriptor = ConnectorToGatewayFrame::Descriptor {
+                descriptor: telegram_descriptor(),
+            };
+            let inbound = ConnectorToGatewayFrame::Inbound {
+                event: json!({ "text": "hi" }),
+                buffer_id: Some("b1".into()),
+            };
+            let batch = format!(
+                "{}\n{}\n",
+                descriptor.to_json().expect("descriptor json"),
+                inbound.to_json().expect("inbound json"),
+            );
+            ws.send(Message::Text(batch.into()))
+                .await
+                .expect("send batch");
+
+            // Read one gateway frame the client sends back.
+            loop {
+                match ws.next().await {
+                    Some(Ok(Message::Text(text))) => {
+                        break GatewayToConnectorFrame::from_json(text.to_string().trim())
+                            .expect("decode gateway frame");
+                    }
+                    Some(Ok(_)) => continue,
+                    other => panic!("expected a text frame, got {other:?}"),
+                }
+            }
+        });
+
+        let config = WebSocketRelayConfig::new(format!("http://{addr}"));
+        let io = connect_websocket_relay_io(&config).await.expect("dial");
+
+        match io.recv().await.expect("recv descriptor") {
+            Some(ConnectorToGatewayFrame::Descriptor { descriptor }) => {
+                assert_eq!(descriptor, telegram_descriptor());
+            }
+            other => panic!("expected descriptor first, got {other:?}"),
+        }
+        match io.recv().await.expect("recv inbound") {
+            Some(ConnectorToGatewayFrame::Inbound { buffer_id, .. }) => {
+                assert_eq!(buffer_id.as_deref(), Some("b1"));
+            }
+            other => panic!("expected inbound second, got {other:?}"),
+        }
+
+        io.send(hello()).await.expect("send hello");
+
+        let received = server.await.expect("join server");
+        assert_eq!(received, hello());
+    }
+
+    #[tokio::test]
+    async fn rejects_dial_without_valid_upgrade_token() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("local addr");
+
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await.expect("accept tcp");
+            // No Authorization header is sent, so the handshake must be refused.
+            assert!(
+                accept_hdr_async(tcp, authorize).await.is_err(),
+                "server should reject a tokenless upgrade"
+            );
+        });
+
+        // Client without gateway_id/secret sends no Authorization header.
+        let config = WebSocketRelayConfig::new(format!("http://{addr}"));
+        assert!(
+            connect_websocket_relay_io(&config).await.is_err(),
+            "dial without a valid upgrade token must fail"
+        );
+        server.await.expect("join server");
+    }
+
+    #[tokio::test]
+    async fn dialer_reconnects_with_valid_upgrade_token() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let addr = listener.local_addr().expect("local addr");
+
+        let server = tokio::spawn(async move {
+            for _ in 0..2 {
+                let (tcp, _) = listener.accept().await.expect("accept tcp");
+                let mut ws = accept_hdr_async(tcp, authorize)
+                    .await
+                    .expect("authorized handshake");
+                let descriptor = ConnectorToGatewayFrame::Descriptor {
+                    descriptor: telegram_descriptor(),
+                };
+                ws.send(Message::Text(
+                    format!("{}\n", descriptor.to_json().expect("descriptor json")).into(),
+                ))
+                .await
+                .expect("send descriptor");
+                // Drain until the client drops the connection, then loop to the
+                // next accept to serve the reconnect.
+                while let Some(Ok(message)) = ws.next().await {
+                    if message.is_close() {
+                        break;
+                    }
+                }
+            }
+        });
+
+        let mut config = WebSocketRelayConfig::new(format!("http://{addr}"));
+        config.gateway_id = Some("gw-1".into());
+        config.upgrade_secret = Some(SECRET.into());
+        let dialer = WebSocketRelayDialer::new(config);
+
+        for attempt in 0..2 {
+            let io = dialer.dial().await.expect("redial");
+            match io.recv().await.expect("recv descriptor") {
+                Some(ConnectorToGatewayFrame::Descriptor { descriptor }) => {
+                    assert_eq!(descriptor, telegram_descriptor(), "attempt {attempt}");
+                }
+                other => panic!("expected descriptor on attempt {attempt}, got {other:?}"),
+            }
+            // Dropping the I/O closes the socket so the server serves the next
+            // connection.
+            drop(io);
+        }
+
+        server.await.expect("join server");
+    }
+}
