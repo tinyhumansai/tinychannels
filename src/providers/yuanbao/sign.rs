@@ -249,7 +249,7 @@ impl SignManager {
                 let body = resp.text().await.unwrap_or_default();
                 return Err(YuanbaoError::AuthFailed(format!(
                     "sign-token HTTP {status}: {}",
-                    &body.chars().take(200).collect::<String>()
+                    body.chars().take(200).collect::<String>()
                 )));
             }
 
