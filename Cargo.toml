@@ -35,7 +35,7 @@ directories = "6"
 futures = "0.3"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 hex = "0.4"
-hmac = "0.13"
+hmac = "0.12"
 parking_lot = "0.12"
 prost = "0.14"
 rand = "0.10"
