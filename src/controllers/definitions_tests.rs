@@ -318,6 +318,52 @@ fn serialization_produces_expected_structure() {
     assert_eq!(caps.len(), def.capabilities.len());
 }
 
+#[test]
+fn connect_schema_advertises_every_auth_mode_wire_name() {
+    // Exhaustive match: adding a `ChannelAuthMode` variant makes this fail to
+    // compile until its canonical wire name is registered here, at which point
+    // the assertions below force the `connect` controller schema to advertise
+    // it too. This ties the enum, its `Display`/`FromStr` wire form, and the
+    // client-facing schema description together so they cannot drift silently.
+    fn wire_name(mode: ChannelAuthMode) -> &'static str {
+        match mode {
+            ChannelAuthMode::ApiKey => "api_key",
+            ChannelAuthMode::BotToken => "bot_token",
+            ChannelAuthMode::OAuth => "oauth",
+            ChannelAuthMode::ManagedDm => "managed_dm",
+        }
+    }
+    const ALL_AUTH_MODES: [ChannelAuthMode; 4] = [
+        ChannelAuthMode::ApiKey,
+        ChannelAuthMode::BotToken,
+        ChannelAuthMode::OAuth,
+        ChannelAuthMode::ManagedDm,
+    ];
+
+    let connect = crate::controllers::schemas::channel_controller_schema("connect");
+    let auth_mode_field = connect
+        .inputs
+        .iter()
+        .find(|field| field.name == "authMode")
+        .expect("connect schema exposes an authMode input");
+
+    for mode in ALL_AUTH_MODES {
+        let wire = wire_name(mode);
+        assert_eq!(mode.to_string(), wire, "Display drift for {mode:?}");
+        assert_eq!(
+            wire.parse::<ChannelAuthMode>()
+                .expect("wire name round-trips"),
+            mode,
+            "FromStr drift for {wire}"
+        );
+        assert!(
+            auth_mode_field.comment.contains(wire),
+            "connect authMode description omits {wire}: {:?}",
+            auth_mode_field.comment
+        );
+    }
+}
+
 // -- #2048: Lark / Feishu + DingTalk channel definitions ------------------
 
 #[test]
