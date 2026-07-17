@@ -17,6 +17,17 @@ The companion research spec is
 The OpenHuman-side integration plan lives in
 `openhuman-4/docs/plans/tinychannels-integration.md`.
 
+> **Update 2026-07-17.** This plan's current-state snapshot below is from
+> 2026-07-04 and now understates progress: Phase 6 provider wire adapters have
+> largely landed (16 providers under `src/providers/`) behind a new host
+> service boundary (`src/host/`), and OpenHuman consumes them as re-export
+> shims. The verified current state and the remaining finishing work (repair
+> the hmac build break, non-relay `scope_id` session keys, durable WhatsApp Web
+> storage, remaining test gates, OpenHuman duplicate-test deletion) are tracked
+> in [tinychannels-migration-remaining-plan.md](tinychannels-migration-remaining-plan.md).
+> Treat that document as the source of truth for what is left; the phase
+> definitions below remain accurate as the design of record.
+
 ## Current State (updated 2026-07-04; Phases 0-5 local slices landed)
 
 The crate compiles with zero warnings (`cargo build --all-targets`, clippy

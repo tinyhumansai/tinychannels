@@ -46,23 +46,33 @@ OpenHuman implements `ChannelBackend` in
 REST client, session JWT, config persistence, credential storage, health, and
 event-bus plumbing.
 
-## Not Yet Ported
+## Provider Wire Adapters (ported behind the host boundary)
 
-Provider wire implementations such as Telegram, Discord, Web, Email, Slack,
-Yuanbao, and others still depend directly on OpenHuman application services.
-Move them only after their app dependencies are reduced to transport/config
-traits that can live in this crate without importing OpenHuman internals.
+Update 2026-07-17: the provider wire implementations have since been ported.
+`src/providers/` now owns dingtalk, discord, email, imessage, irc, lark, linq,
+mattermost, qq, signal, slack, telegram, whatsapp, whatsapp_web, and yuanbao.
+The app-side dependencies were reduced to a host-owned service boundary
+(`src/host/`: HTTP proxy client, approval, voice/STT, pairing, and
+conversation-memory contracts) that providers call instead of importing
+OpenHuman internals. In OpenHuman the corresponding `channels/providers/*.rs`
+files are now one-line re-exports of the crate providers; Telegram keeps only
+its host-coupled glue (`remote_control`, `bus`, `approval_surface`).
 
-Per the 2026-07-04 audit, provider portability falls into a ladder:
+The original 2026-07-04 portability ladder, now resolved:
 
-- Self-contained today (no cross-module OpenHuman imports): email, irc,
-  yuanbao, cli, imessage, mattermost, qq, dingtalk, presentation.
-- Need only a configured-HTTP-client trait (they import
-  `build_runtime_proxy_client`): discord, slack, whatsapp, lark, signal.
-- Need approval, voice/STT, pairing, and conversation-memory traits first:
-  telegram.
-- Not porting targets (they are the app-side consumers of this crate): the
-  `runtime/` dispatch engine and the `web` provider.
+- Self-contained (no cross-module OpenHuman imports): email, irc, yuanbao,
+  imessage, mattermost, qq, dingtalk — ported.
+- Needed only a configured-HTTP-client trait: discord, slack, whatsapp, lark,
+  signal — ported via the host proxy-client contract.
+- Needed approval, voice/STT, pairing, and conversation-memory traits:
+  telegram — ported via the host service boundary.
+- Not porting targets (app-side consumers of this crate): the `runtime/`
+  dispatch engine and the `web` provider — unchanged, they stay in OpenHuman.
+
+Remaining provider debt: WhatsApp Web still uses `wacore`'s in-memory session
+backend and re-links after restart, pending a rusqlite-backed durable store
+(see the remaining-work plan). The finishing slices for the migration are
+tracked in [spec/tinychannels-migration-remaining-plan.md](spec/tinychannels-migration-remaining-plan.md).
 
 ## Current Status and Next Steps
 
