@@ -809,15 +809,12 @@ impl TelegramChannel {
         let is_group = Self::is_group_message(message);
         let mention_text = if self.mention_only && is_group {
             let mention_source = mention_source?;
-            let bot_username = self.bot_username.lock();
-            if let Some(ref bot_username) = *bot_username {
-                if !Self::contains_bot_mention(mention_source, bot_username) {
-                    return None;
-                }
-                Self::normalize_incoming_content(mention_source, bot_username)
-            } else {
+            let bot_username_guard = self.bot_username.lock();
+            let bot_username = bot_username_guard.as_ref()?;
+            if !Self::contains_bot_mention(mention_source, bot_username) {
                 return None;
             }
+            Self::normalize_incoming_content(mention_source, bot_username)
         } else {
             None
         };

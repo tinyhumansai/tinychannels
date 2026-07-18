@@ -502,3 +502,167 @@ fn durability_degrades_to_best_effort_when_capability_missing() {
         vec![DurableFinalDeliveryCapability::Media]
     );
 }
+
+#[test]
+fn every_durable_capability_downgrades_when_unsupported_and_preserves_when_supported() {
+    for capability in crate::channel::durable_final_delivery_capabilities() {
+        let mut required = crate::channel::DurableFinalDeliveryRequirementMap::new();
+        required.insert(*capability, true);
+
+        // Adapter advertises nothing: a required capability forces best-effort.
+        let unsupported = negotiate_delivery_durability(
+            DeliveryDurability::Required,
+            &required,
+            &crate::channel::DurableFinalDeliveryRequirementMap::new(),
+        );
+        assert_eq!(
+            unsupported.durability,
+            DeliveryDurability::BestEffort,
+            "{capability:?} should downgrade when unsupported"
+        );
+        assert_eq!(
+            unsupported.missing_capabilities,
+            vec![*capability],
+            "{capability:?} should be reported missing"
+        );
+
+        // Adapter advertises the capability: requested durability is preserved.
+        let mut supported = crate::channel::DurableFinalDeliveryRequirementMap::new();
+        supported.insert(*capability, true);
+        let honored =
+            negotiate_delivery_durability(DeliveryDurability::Required, &required, &supported);
+        assert_eq!(
+            honored.durability,
+            DeliveryDurability::Required,
+            "{capability:?} should preserve durability when supported"
+        );
+        assert!(
+            honored.missing_capabilities.is_empty(),
+            "{capability:?} should report no missing capabilities when supported"
+        );
+    }
+}
+
+#[test]
+fn capability_advertised_as_false_counts_as_unsupported() {
+    for capability in crate::channel::durable_final_delivery_capabilities() {
+        let mut required = crate::channel::DurableFinalDeliveryRequirementMap::new();
+        required.insert(*capability, true);
+        let mut supported = crate::channel::DurableFinalDeliveryRequirementMap::new();
+        supported.insert(*capability, false);
+
+        let negotiated =
+            negotiate_delivery_durability(DeliveryDurability::Required, &required, &supported);
+        assert_eq!(
+            negotiated.durability,
+            DeliveryDurability::BestEffort,
+            "{capability:?}=false must not satisfy a requirement"
+        );
+        assert_eq!(negotiated.missing_capabilities, vec![*capability]);
+    }
+}
+
+#[test]
+fn disabled_durability_short_circuits_even_with_unmet_requirements() {
+    let mut required = crate::channel::DurableFinalDeliveryRequirementMap::new();
+    required.insert(DurableFinalDeliveryCapability::Media, true);
+    let negotiated = negotiate_delivery_durability(
+        DeliveryDurability::Disabled,
+        &required,
+        &crate::channel::DurableFinalDeliveryRequirementMap::new(),
+    );
+    assert_eq!(negotiated.durability, DeliveryDurability::Disabled);
+    assert!(negotiated.missing_capabilities.is_empty());
+}
+
+#[test]
+fn multiple_missing_capabilities_are_all_reported() {
+    let mut intent = intent(OutboundPayload::Media {
+        text: None,
+        media_urls: vec!["https://example.test/image.png".into()],
+    });
+    intent.reply_to_id = Some("root".into());
+    intent.thread_id = Some("thread".into());
+    let required = required_durable_final_capabilities(&intent);
+
+    // Only Media is advertised; ReplyTo and Thread remain unmet.
+    let mut supported = crate::channel::DurableFinalDeliveryRequirementMap::new();
+    supported.insert(DurableFinalDeliveryCapability::Media, true);
+
+    let negotiated =
+        negotiate_delivery_durability(DeliveryDurability::Required, &required, &supported);
+    assert_eq!(negotiated.durability, DeliveryDurability::BestEffort);
+    assert!(
+        negotiated
+            .missing_capabilities
+            .contains(&DurableFinalDeliveryCapability::ReplyTo)
+    );
+    assert!(
+        negotiated
+            .missing_capabilities
+            .contains(&DurableFinalDeliveryCapability::Thread)
+    );
+    assert!(
+        !negotiated
+            .missing_capabilities
+            .contains(&DurableFinalDeliveryCapability::Media)
+    );
+}
+
+#[test]
+fn payload_shape_maps_to_expected_durable_capability() {
+    use DurableFinalDeliveryCapability::*;
+    let cases = [
+        (OutboundPayload::Text { text: "hi".into() }, Text),
+        (
+            OutboundPayload::Media {
+                text: None,
+                media_urls: vec!["https://example.test/i.png".into()],
+            },
+            Media,
+        ),
+        (
+            OutboundPayload::Voice {
+                media_url: "https://example.test/v.ogg".into(),
+            },
+            Media,
+        ),
+        (
+            OutboundPayload::Files {
+                file_urls: vec!["https://example.test/f.pdf".into()],
+            },
+            Media,
+        ),
+        (
+            OutboundPayload::Poll {
+                question: "q".into(),
+                options: vec!["a".into(), "b".into()],
+            },
+            Poll,
+        ),
+        (
+            OutboundPayload::PresentationBlocks {
+                blocks: serde_json::json!([]),
+            },
+            Payload,
+        ),
+        (
+            OutboundPayload::NativeChannelData {
+                data: serde_json::json!({}),
+            },
+            Payload,
+        ),
+    ];
+
+    for (payload, expected) in cases {
+        let requirements = required_durable_final_capabilities(&intent(payload.clone()));
+        assert_eq!(
+            requirements.get(&expected),
+            Some(&true),
+            "{payload:?} should require {expected:?}"
+        );
+        // No reply/thread on the base intent, so those keys stay absent.
+        assert!(!requirements.contains_key(&ReplyTo));
+        assert!(!requirements.contains_key(&Thread));
+    }
+}
