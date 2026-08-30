@@ -5,8 +5,6 @@
 <h1 align="center">TinyChannels</h1>
 
 <p align="center">
- <a href="https://crates.io/crates/tinychannels"><img src="https://img.shields.io/crates/v/tinychannels.svg" alt="crates.io" /></a>
- <a href="https://docs.rs/tinychannels"><img src="https://docs.rs/tinychannels/badge.svg" alt="docs.rs" /></a>
  <a href="https://github.com/tinyhumansai/tinychannels/actions/workflows/ci.yml"><img src="https://github.com/tinyhumansai/tinychannels/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3" /></a>
 </p>
@@ -40,18 +38,24 @@ TinyChannels includes optional provider implementations that must be explicitly 
 | **Lark/Feishu** | `lark` | `LarkChannel` (webhook receiver + Protobuf decoder) | `axum`, `prost` |
 | **WhatsApp Web** | `whatsapp-web` | `WhatsAppWebChannel` (multi-device via whatsapp-rust) | `whatsapp-rust`, `whatsapp-rust-tokio-transport`, `whatsapp-rust-ureq-http-client`, `wacore` |
 
+> **Not on crates.io.** This crate and `tinychannels-bus` are `publish = false`
+> and are consumed as a git submodule plus a path dependency (OpenHuman vendors
+> them under `vendor/tinychannels`). What a host *loads* at runtime is the
+> compiled `tinychannels-module` `cdylib`, delivered as a release artifact and
+> pinned by SHA-256 — not a published crate.
+
 The default feature set (`default = []`) does not include these providers. To use them, add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-tinychannels = { version = "0.1", features = ["email", "lark", "whatsapp-web"] }
+tinychannels = { git = "https://github.com/tinyhumansai/tinychannels", features = ["email", "lark", "whatsapp-web"] }
 ```
 
 Or enable them individually as needed:
 
 ```toml
 [dependencies]
-tinychannels = { version = "0.1", features = ["email"] }
+tinychannels = { git = "https://github.com/tinyhumansai/tinychannels", features = ["email"] }
 ```
 
 If you only ever *send* mail — no mailbox is polled — take `email-send` instead.
@@ -60,7 +64,7 @@ helpers on `lettre` alone, without the IMAP receive stack (18 fewer packages):
 
 ```toml
 [dependencies]
-tinychannels = { version = "0.1", features = ["email-send"] }
+tinychannels = { git = "https://github.com/tinyhumansai/tinychannels", features = ["email-send"] }
 ```
 
 `email-send` carries no `Channel` impl — a send-only build cannot `listen`, so

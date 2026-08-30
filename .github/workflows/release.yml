@@ -20,8 +20,8 @@ permissions:
   contents: write
 
 jobs:
-  publish-rust:
-    name: Release Rust Crate
+  tag-release:
+    name: Tag Release
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment: Production
@@ -103,10 +103,14 @@ jobs:
             echo "tag=${tag}"
           } >> "$GITHUB_OUTPUT"
 
-      # The version lives under `[workspace.package]` now and every member
-      # inherits it with `version.workspace = true`, so this rewrites one value
-      # for all three crates. Targeting `[package]` (as this step used to) would
-      # silently match nothing and publish the previous version.
+      # The version lives under `[workspace.package]` and every member inherits
+      # it with `version.workspace = true`, so this rewrites one value for all
+      # three crates. Targeting `[package]` (as this step used to) would
+      # silently match nothing and tag the previous version.
+      #
+      # Nothing rewrites a dependency requirement any more: the crates are not
+      # published and depend on each other by path alone, so there is no version
+      # requirement that could fall out of lockstep.
       - name: Update crate version
         env:
           NEXT_VERSION: ${{ steps.version.outputs.next_version }}
@@ -114,15 +118,15 @@ jobs:
           perl -0pi -e 's/(\[workspace\.package\][\s\S]*?\nversion = ")[^"]+(")/$1$ENV{NEXT_VERSION}$2/' Cargo.toml
           grep -q "^version = \"$NEXT_VERSION\"" Cargo.toml \
             || { echo "version bump did not apply"; exit 1; }
-          # The root crate names the contract crate by exact version, so bump
-          # that requirement in lockstep or publishing the root looks for a
-          # version that was never released.
-          perl -0pi -e 's/(tinychannels-bus = \{ version = ")[^"]+(")/$1$ENV{NEXT_VERSION}$2/' Cargo.toml
-          cargo update -p tinychannels-bus --precise "$NEXT_VERSION"
-          cargo update -p "$CRATE_NAME" --precise "$NEXT_VERSION"
-          # `cargo update --precise` is not proof the lockfile moved: it exits 0
-          # when the version was already satisfied. Assert the result instead, or
-          # a silently-skipped bump ships the previous version.
+          # Refresh Cargo.lock's record of the workspace members' versions.
+          # `cargo metadata --no-deps` does NOT rewrite the lockfile — it answers
+          # from the manifests and leaves Cargo.lock untouched, so the assertion
+          # below caught it. `cargo update --workspace` re-resolves the members
+          # without touching third-party pins.
+          cargo update --workspace
+          # Assert the result rather than trusting the command: a lockfile that
+          # silently stayed behind would tag a release whose artifacts carry the
+          # previous version in their names.
           for crate in "$CRATE_NAME" tinychannels-bus tinychannels-module; do
             grep -A1 "^name = \"$crate\"$" Cargo.lock \
               | grep -q "^version = \"$NEXT_VERSION\"$" \
@@ -140,14 +144,6 @@ jobs:
           git commit -m "Release ${RELEASE_TAG}"
           git tag -a "${RELEASE_TAG}" -m "Release ${RELEASE_TAG}"
 
-      # Only the contract crate can be packaged here. `cargo package` rewrites a
-      # path dependency to a registry lookup, so packaging the root crate fails
-      # until `tinychannels-bus` is actually in the index — which happens in the
-      # publish step below. `tinychannels-module` is `publish = false` and is
-      # skipped entirely.
-      - name: Package the bus contract
-        run: cargo package --locked --package tinychannels-bus
-
       - name: Push release commit and tag
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
@@ -155,60 +151,12 @@ jobs:
           git push origin "HEAD:${GITHUB_REF_NAME}"
           git push origin "${RELEASE_TAG}"
 
-      # Order is load-bearing: the root crate names the contract crate by exact
-      # version, so the contract has to be in the index before the root can
-      # resolve it.
-      #
-      # Recent cargo waits for its upload to appear in the index before
-      # returning, but that wait has a timeout after which it warns and exits 0
-      # — so "the first publish returned" is not proof the second one can
-      # resolve. Rather than depend on which behaviour this runner's cargo has,
-      # retry the root publish until the index catches up. An already-published
-      # version is treated as success so a retry after a partial failure is not
-      # itself fatal.
-      - name: Publish to crates.io
-        run: |
-          set -euo pipefail
-
-          # Idempotent for the same reason the root publish below is: a release
-          # re-run after a partial failure would otherwise die here, under
-          # `set -e`, before the root crate is ever attempted.
-          if ! output="$(cargo publish --locked --package tinychannels-bus 2>&1)"; then
-            echo "$output"
-            grep -qi "already .*uploaded\|crate version .* is already being published" <<<"$output" \
-              || exit 1
-            echo "Contract crate is already published at this version; continuing."
-          else
-            echo "$output"
-          fi
-
-          for attempt in $(seq 1 30); do
-            if output="$(cargo publish --locked --package tinychannels 2>&1)"; then
-              echo "$output"
-              exit 0
-            fi
-            echo "$output"
-            if grep -qi "already .*uploaded\|crate version .* is already being published" <<<"$output"; then
-              echo "Root crate is already published at this version; treating as success."
-              exit 0
-            fi
-            if ! grep -qi "tinychannels-bus" <<<"$output"; then
-              echo "Publish failed for a reason unrelated to index propagation."
-              exit 1
-            fi
-            echo "Attempt ${attempt}/30: contract crate not in the index yet; retrying in 10s."
-            sleep 10
-          done
-          echo "Contract crate never became resolvable in the index."
-          exit 1
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-
-  # The crate publish above is not the deliverable for `tinychannels-module`:
-  # it is `publish = false`, and what a host loads is the compiled `cdylib`.
-  # OpenHuman's `modules::registry` pins each artifact by a SHA-256 digest taken
-  # verbatim from a release, so without these jobs the module cannot be pinned
-  # and therefore cannot be loaded at all.
+  # The compiled `cdylib` is the deliverable. Nothing here is published to a
+  # package registry: every consumer takes this repository as a git submodule
+  # and a path dependency, and what a host *loads* is the artifact these jobs
+  # build. OpenHuman's `modules::registry` pins each one by a SHA-256 digest
+  # taken verbatim from a release, so without these jobs the module cannot be
+  # pinned and therefore cannot be loaded at all.
   #
   # The matrix is per-distro on purpose, not per-target. A `.so` built against
   # glibc 2.39 fails to `dlopen` on a 2.35 host with a symbol-version error, so
@@ -216,7 +164,7 @@ jobs:
   # only helps if the older build exists.
   native-bundles:
     name: Module bundle (${{ matrix.id }})
-    needs: publish-rust
+    needs: tag-release
     strategy:
       # One unavailable runner should not cost the other ten artifacts; the
       # asset-count check in `github-release` is what refuses a partial set.
@@ -260,9 +208,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # The tag the publish job just created, so the artifact matches the
+          # The tag the version job just created, so the artifact matches the
           # released source rather than whatever `main` has moved on to.
-          ref: ${{ needs.publish-rust.outputs.tag }}
+          ref: ${{ needs.tag-release.outputs.tag }}
           persist-credentials: false
           submodules: true
 
@@ -291,7 +239,7 @@ jobs:
         shell: bash
         env:
           BUNDLE_ID: ${{ matrix.id }}
-          VERSION: ${{ needs.publish-rust.outputs.next_version }}
+          VERSION: ${{ needs.tag-release.outputs.next_version }}
         run: |
           set -euo pipefail
 
@@ -328,7 +276,7 @@ jobs:
         shell: pwsh
         env:
           BUNDLE_ID: ${{ matrix.id }}
-          VERSION: ${{ needs.publish-rust.outputs.next_version }}
+          VERSION: ${{ needs.tag-release.outputs.next_version }}
         run: |
           $ErrorActionPreference = 'Stop'
           $libraryName = 'tinychannels_module'
@@ -363,13 +311,13 @@ jobs:
   github-release:
     name: Create GitHub release
     needs:
-      - publish-rust
+      - tag-release
       - native-bundles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.publish-rust.outputs.tag }}
+          ref: ${{ needs.tag-release.outputs.tag }}
           persist-credentials: false
           submodules: true
 
@@ -409,7 +357,7 @@ jobs:
       - name: Create release and upload assets
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.publish-rust.outputs.tag }}
+          RELEASE_TAG: ${{ needs.tag-release.outputs.tag }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -420,15 +368,15 @@ jobs:
             --title "$RELEASE_TAG" \
             --generate-notes
 
-      # Downloads what was just published and loads it the way a host does, so a
+      # Downloads what was just released and loads it the way a host does, so a
       # release that cannot actually be installed fails here rather than in the
       # field on whichever platform nobody tested.
-      - name: Verify the published module through TinyBus
+      - name: Verify the released module through TinyBus
         shell: bash
         env:
-          RELEASE_TAG: ${{ needs.publish-rust.outputs.tag }}
+          RELEASE_TAG: ${{ needs.tag-release.outputs.tag }}
           REPOSITORY: ${{ github.repository }}
-          VERSION: ${{ needs.publish-rust.outputs.next_version }}
+          VERSION: ${{ needs.tag-release.outputs.next_version }}
         run: |
           set -euo pipefail
           archive="tinychannels-module-${VERSION}-ubuntu-24.04-x86_64.tar.gz"
