@@ -103,10 +103,14 @@ jobs:
             echo "tag=${tag}"
           } >> "$GITHUB_OUTPUT"
 
-      # The version lives under `[workspace.package]` now and every member
-      # inherits it with `version.workspace = true`, so this rewrites one value
-      # for all three crates. Targeting `[package]` (as this step used to) would
-      # silently match nothing and publish the previous version.
+      # The version lives under `[workspace.package]` and every member inherits
+      # it with `version.workspace = true`, so this rewrites one value for all
+      # three crates. Targeting `[package]` (as this step used to) would
+      # silently match nothing and tag the previous version.
+      #
+      # Nothing rewrites a dependency requirement any more: the crates are not
+      # published and depend on each other by path alone, so there is no version
+      # requirement that could fall out of lockstep.
       - name: Update crate version
         env:
           NEXT_VERSION: ${{ steps.version.outputs.next_version }}
@@ -114,15 +118,11 @@ jobs:
           perl -0pi -e 's/(\[workspace\.package\][\s\S]*?\nversion = ")[^"]+(")/$1$ENV{NEXT_VERSION}$2/' Cargo.toml
           grep -q "^version = \"$NEXT_VERSION\"" Cargo.toml \
             || { echo "version bump did not apply"; exit 1; }
-          # The root crate names the contract crate by exact version, so bump
-          # that requirement in lockstep or the two halves of one release
-          # disagree about which version they are.
-          perl -0pi -e 's/(tinychannels-bus = \{ version = ")[^"]+(")/$1$ENV{NEXT_VERSION}$2/' Cargo.toml
-          cargo update -p tinychannels-bus --precise "$NEXT_VERSION"
-          cargo update -p "$CRATE_NAME" --precise "$NEXT_VERSION"
-          # `cargo update --precise` is not proof the lockfile moved: it exits 0
-          # when the version was already satisfied. Assert the result instead, or
-          # a silently-skipped bump ships the previous version.
+          # Refresh Cargo.lock's record of the workspace members' versions.
+          cargo metadata --format-version 1 --no-deps > /dev/null
+          # Assert the result rather than trusting the command: a lockfile that
+          # silently stayed behind would tag a release whose artifacts carry the
+          # previous version in their names.
           for crate in "$CRATE_NAME" tinychannels-bus tinychannels-module; do
             grep -A1 "^name = \"$crate\"$" Cargo.lock \
               | grep -q "^version = \"$NEXT_VERSION\"$" \

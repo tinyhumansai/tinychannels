@@ -71,7 +71,10 @@ whatsapp-web = [
 # The transport-free vocabulary shared with every TinyChannels host. The
 # provider stack below is the implementation of that contract; a host that
 # only names channel types depends on the bus crate alone.
-tinychannels-bus = { version = "0.1.0", path = "crates/tinychannels-bus" }
+# Pure path, no version requirement: neither crate is published, so a
+# version here would only ever be used by a `cargo publish` that cannot
+# happen, while still needing to be bumped in lockstep by every release.
+tinychannels-bus = { path = "crates/tinychannels-bus" }
 anyhow = "1"
 async-trait = "0.1"
 base64 = "0.22"
