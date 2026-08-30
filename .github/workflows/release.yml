@@ -368,10 +368,10 @@ jobs:
             --title "$RELEASE_TAG" \
             --generate-notes
 
-      # Downloads what was just published and loads it the way a host does, so a
+      # Downloads what was just released and loads it the way a host does, so a
       # release that cannot actually be installed fails here rather than in the
       # field on whichever platform nobody tested.
-      - name: Verify the published module through TinyBus
+      - name: Verify the released module through TinyBus
         shell: bash
         env:
           RELEASE_TAG: ${{ needs.tag-release.outputs.tag }}
