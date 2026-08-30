@@ -119,7 +119,11 @@ jobs:
           grep -q "^version = \"$NEXT_VERSION\"" Cargo.toml \
             || { echo "version bump did not apply"; exit 1; }
           # Refresh Cargo.lock's record of the workspace members' versions.
-          cargo metadata --format-version 1 --no-deps > /dev/null
+          # `cargo metadata --no-deps` does NOT rewrite the lockfile — it answers
+          # from the manifests and leaves Cargo.lock untouched, so the assertion
+          # below caught it. `cargo update --workspace` re-resolves the members
+          # without touching third-party pins.
+          cargo update --workspace
           # Assert the result rather than trusting the command: a lockfile that
           # silently stayed behind would tag a release whose artifacts carry the
           # previous version in their names.

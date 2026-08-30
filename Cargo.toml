@@ -8,7 +8,7 @@ resolver = "3"
 
 [workspace.package]
 # Releases update this sole workspace version before packaging every crate.
-version = "0.2.0"
+version = "0.1.0"
 
 [package]
 name = "tinychannels"

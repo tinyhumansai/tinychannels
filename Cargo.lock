@@ -2653,7 +2653,7 @@ dependencies = [
 
 [[package]]
 name = "tinychannels"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-imap",
@@ -2702,7 +2702,7 @@ dependencies = [
 
 [[package]]
 name = "tinychannels-bus"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2726,7 +2726,7 @@ dependencies = [
 
 [[package]]
 name = "tinychannels-module"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "log",
  "serde",
