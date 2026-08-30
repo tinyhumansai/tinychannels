@@ -140,14 +140,6 @@ jobs:
           git commit -m "Release ${RELEASE_TAG}"
           git tag -a "${RELEASE_TAG}" -m "Release ${RELEASE_TAG}"
 
-      # Only the contract crate can be packaged here. `cargo package` rewrites a
-      # path dependency to a registry lookup, so packaging the root crate fails
-      # until `tinychannels-bus` is actually in the index — which happens in the
-      # publish step below. `tinychannels-module` is `publish = false` and is
-      # skipped entirely.
-      - name: Package the bus contract
-        run: cargo package --locked --package tinychannels-bus
-
       - name: Push release commit and tag
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
@@ -155,60 +147,12 @@ jobs:
           git push origin "HEAD:${GITHUB_REF_NAME}"
           git push origin "${RELEASE_TAG}"
 
-      # Order is load-bearing: the root crate names the contract crate by exact
-      # version, so the contract has to be in the index before the root can
-      # resolve it.
-      #
-      # Recent cargo waits for its upload to appear in the index before
-      # returning, but that wait has a timeout after which it warns and exits 0
-      # — so "the first publish returned" is not proof the second one can
-      # resolve. Rather than depend on which behaviour this runner's cargo has,
-      # retry the root publish until the index catches up. An already-published
-      # version is treated as success so a retry after a partial failure is not
-      # itself fatal.
-      - name: Publish to crates.io
-        run: |
-          set -euo pipefail
-
-          # Idempotent for the same reason the root publish below is: a release
-          # re-run after a partial failure would otherwise die here, under
-          # `set -e`, before the root crate is ever attempted.
-          if ! output="$(cargo publish --locked --package tinychannels-bus 2>&1)"; then
-            echo "$output"
-            grep -qi "already .*uploaded\|crate version .* is already being published" <<<"$output" \
-              || exit 1
-            echo "Contract crate is already published at this version; continuing."
-          else
-            echo "$output"
-          fi
-
-          for attempt in $(seq 1 30); do
-            if output="$(cargo publish --locked --package tinychannels 2>&1)"; then
-              echo "$output"
-              exit 0
-            fi
-            echo "$output"
-            if grep -qi "already .*uploaded\|crate version .* is already being published" <<<"$output"; then
-              echo "Root crate is already published at this version; treating as success."
-              exit 0
-            fi
-            if ! grep -qi "tinychannels-bus" <<<"$output"; then
-              echo "Publish failed for a reason unrelated to index propagation."
-              exit 1
-            fi
-            echo "Attempt ${attempt}/30: contract crate not in the index yet; retrying in 10s."
-            sleep 10
-          done
-          echo "Contract crate never became resolvable in the index."
-          exit 1
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-
-  # The crate publish above is not the deliverable for `tinychannels-module`:
-  # it is `publish = false`, and what a host loads is the compiled `cdylib`.
-  # OpenHuman's `modules::registry` pins each artifact by a SHA-256 digest taken
-  # verbatim from a release, so without these jobs the module cannot be pinned
-  # and therefore cannot be loaded at all.
+  # The compiled `cdylib` is the deliverable. Nothing here is published to a
+  # package registry: every consumer takes this repository as a git submodule
+  # and a path dependency, and what a host *loads* is the artifact these jobs
+  # build. OpenHuman's `modules::registry` pins each one by a SHA-256 digest
+  # taken verbatim from a release, so without these jobs the module cannot be
+  # pinned and therefore cannot be loaded at all.
   #
   # The matrix is per-distro on purpose, not per-target. A `.so` built against
   # glibc 2.39 fails to `dlopen` on a 2.35 host with a symbol-version error, so
