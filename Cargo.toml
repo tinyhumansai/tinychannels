@@ -14,6 +14,13 @@ version = "0.1.0"
 name = "tinychannels"
 version.workspace = true
 edition = "2024"
+# Not published to a package registry. Every consumer takes this repository as
+# a git submodule and a path dependency, and the loadable module is delivered as
+# a signed release artifact rather than a crate. `publish = false` makes that a
+# property of the manifest instead of a convention someone has to remember, so
+# an accidental `cargo publish` fails locally rather than claiming a name on
+# crates.io that cannot be taken back.
+publish = false
 license = "GPL-3.0-only"
 description = "Pluggable channel and messaging primitives for OpenHuman harness communication."
 repository = "https://github.com/tinyhumansai/tinychannels"
