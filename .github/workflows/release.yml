@@ -20,8 +20,8 @@ permissions:
   contents: write
 
 jobs:
-  publish-rust:
-    name: Release Rust Crate
+  tag-release:
+    name: Tag Release
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment: Production
@@ -115,8 +115,8 @@ jobs:
           grep -q "^version = \"$NEXT_VERSION\"" Cargo.toml \
             || { echo "version bump did not apply"; exit 1; }
           # The root crate names the contract crate by exact version, so bump
-          # that requirement in lockstep or publishing the root looks for a
-          # version that was never released.
+          # that requirement in lockstep or the two halves of one release
+          # disagree about which version they are.
           perl -0pi -e 's/(tinychannels-bus = \{ version = ")[^"]+(")/$1$ENV{NEXT_VERSION}$2/' Cargo.toml
           cargo update -p tinychannels-bus --precise "$NEXT_VERSION"
           cargo update -p "$CRATE_NAME" --precise "$NEXT_VERSION"
@@ -160,7 +160,7 @@ jobs:
   # only helps if the older build exists.
   native-bundles:
     name: Module bundle (${{ matrix.id }})
-    needs: publish-rust
+    needs: tag-release
     strategy:
       # One unavailable runner should not cost the other ten artifacts; the
       # asset-count check in `github-release` is what refuses a partial set.
@@ -204,9 +204,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # The tag the publish job just created, so the artifact matches the
+          # The tag the version job just created, so the artifact matches the
           # released source rather than whatever `main` has moved on to.
-          ref: ${{ needs.publish-rust.outputs.tag }}
+          ref: ${{ needs.tag-release.outputs.tag }}
           persist-credentials: false
           submodules: true
 
@@ -235,7 +235,7 @@ jobs:
         shell: bash
         env:
           BUNDLE_ID: ${{ matrix.id }}
-          VERSION: ${{ needs.publish-rust.outputs.next_version }}
+          VERSION: ${{ needs.tag-release.outputs.next_version }}
         run: |
           set -euo pipefail
 
@@ -272,7 +272,7 @@ jobs:
         shell: pwsh
         env:
           BUNDLE_ID: ${{ matrix.id }}
-          VERSION: ${{ needs.publish-rust.outputs.next_version }}
+          VERSION: ${{ needs.tag-release.outputs.next_version }}
         run: |
           $ErrorActionPreference = 'Stop'
           $libraryName = 'tinychannels_module'
@@ -307,13 +307,13 @@ jobs:
   github-release:
     name: Create GitHub release
     needs:
-      - publish-rust
+      - tag-release
       - native-bundles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.publish-rust.outputs.tag }}
+          ref: ${{ needs.tag-release.outputs.tag }}
           persist-credentials: false
           submodules: true
 
@@ -353,7 +353,7 @@ jobs:
       - name: Create release and upload assets
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.publish-rust.outputs.tag }}
+          RELEASE_TAG: ${{ needs.tag-release.outputs.tag }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -370,9 +370,9 @@ jobs:
       - name: Verify the published module through TinyBus
         shell: bash
         env:
-          RELEASE_TAG: ${{ needs.publish-rust.outputs.tag }}
+          RELEASE_TAG: ${{ needs.tag-release.outputs.tag }}
           REPOSITORY: ${{ github.repository }}
-          VERSION: ${{ needs.publish-rust.outputs.next_version }}
+          VERSION: ${{ needs.tag-release.outputs.next_version }}
         run: |
           set -euo pipefail
           archive="tinychannels-module-${VERSION}-ubuntu-24.04-x86_64.tar.gz"
