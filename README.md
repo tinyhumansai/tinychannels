@@ -5,8 +5,6 @@
 <h1 align="center">TinyChannels</h1>
 
 <p align="center">
- <a href="https://crates.io/crates/tinychannels"><img src="https://img.shields.io/crates/v/tinychannels.svg" alt="crates.io" /></a>
- <a href="https://docs.rs/tinychannels"><img src="https://docs.rs/tinychannels/badge.svg" alt="docs.rs" /></a>
  <a href="https://github.com/tinyhumansai/tinychannels/actions/workflows/ci.yml"><img src="https://github.com/tinyhumansai/tinychannels/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3" /></a>
 </p>
