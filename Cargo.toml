@@ -6,6 +6,10 @@ default-members = [".", "crates/tinychannels-bus", "crates/tinychannels-runtime"
 exclude = ["vendor/tinybus"]
 resolver = "3"
 
+[patch.crates-io]
+tinybus = { path = "vendor/tinybus/crates/tinybus" }
+tinybus-module = { path = "vendor/tinybus/crates/tinybus-module" }
+
 [workspace.package]
 # Releases update this sole workspace version before packaging every crate.
 version = "0.1.3"

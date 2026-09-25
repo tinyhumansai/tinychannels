@@ -17,6 +17,10 @@
 pub mod host;
 mod service;
 
+/// Constructs this module for registration with an in-process TinyBus host.
+#[cfg(feature = "static-link")]
+pub use service::exports::linked_module;
+
 pub use host::HostChannels;
 pub use tinychannels_bus::{
     BUS_NAME, CONTRACT_VERSION, HOST_BUS_NAME, HOST_OBJECT_PATH, METHODS, OBJECT_PATH,
