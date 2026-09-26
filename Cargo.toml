@@ -71,7 +71,7 @@ tinychannels-bus = { version = "0.1.3", path = "crates/tinychannels-bus" }
 tinychannels-runtime = { version = "0.1.2", path = "crates/tinychannels-runtime" }
 anyhow = "1"
 async-trait = "0.1"
-base64 = "0.22"
+base64 = "0.23"
 chrono = { version = "0.4", features = ["serde"] }
 directories = "6"
 futures = "0.3"
