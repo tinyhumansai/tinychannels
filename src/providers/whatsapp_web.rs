@@ -99,6 +99,13 @@ pub struct WhatsAppWebChannel {
 
 #[cfg(feature = "whatsapp-web")]
 impl WhatsAppWebChannel {
+    fn non_self_echoes<'a, T>(
+        messages: &'a [T],
+        is_from_me: impl Fn(&T) -> bool,
+    ) -> impl Iterator<Item = &'a T> {
+        messages.iter().filter(move |message| !is_from_me(message))
+    }
+
     /// Construct a channel. The bot does not connect until [`Channel::listen`]
     /// is invoked.
     pub fn new(
@@ -324,17 +331,15 @@ impl Channel for WhatsAppWebChannel {
                 async move {
                     match event.as_ref() {
                         Event::Messages(batch) => {
-                            for inbound in batch.iter() {
+                            for inbound in Self::non_self_echoes(batch, |inbound| {
+                                inbound.info.source.is_from_me
+                            }) {
                                 let msg = &inbound.message;
                                 let info = &inbound.info;
                                 // Self-echoes (messages this user sent from another
                                 // linked device) are mirrored to all devices via
                                 // the WhatsApp protocol. Drop them so the agent
                                 // doesn't react to its own outgoing messages.
-                                if info.source.is_from_me {
-                                    return;
-                                }
-
                                 let text = Self::extract_message_text(
                                     msg.conversation.as_deref(),
                                     msg.extended_text_message.text.as_deref(),
