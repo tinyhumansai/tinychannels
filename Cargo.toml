@@ -1,5 +1,9 @@
 [workspace]
-members = ["crates/tinychannels-bus", "crates/tinychannels-module"]
+members = [
+    "crates/tinychannels-bus",
+    "crates/tinychannels-module",
+    "crates/tinychannels-runtime",
+]
 default-members = [".", "crates/tinychannels-bus", "crates/tinychannels-module"]
 # The bus is a submodule with its own workspace; it is a path dependency of the
 # module crate, not a member here.
