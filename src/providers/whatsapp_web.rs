@@ -331,9 +331,12 @@ impl Channel for WhatsAppWebChannel {
                 async move {
                     match event.as_ref() {
                         Event::Messages(batch) => {
-                            for inbound in Self::non_self_echoes(batch, |inbound| {
+                            for inbound in Self::non_self_echoes(
+                                &batch.messages,
+                                |inbound: &wacore::types::events::InboundMessage| {
                                 inbound.info.source.is_from_me
-                            }) {
+                                },
+                            ) {
                                 let msg = &inbound.message;
                                 let info = &inbound.info;
                                 // Self-echoes (messages this user sent from another
