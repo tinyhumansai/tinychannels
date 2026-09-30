@@ -1,4 +1,4 @@
-//! WhatsApp Web channel backed by upstream [`whatsapp-rust`] 0.5.
+//! WhatsApp Web channel backed by upstream [`whatsapp-rust`] 0.7.
 //!
 //! # Why the upgrade
 //!
@@ -7,7 +7,7 @@
 //! contacts and group sender-key (`skmsg`) messages: the protocol layer
 //! decrypted the payload but never dispatched it to user code, breaking
 //! agent dispatch for the bulk of modern WhatsApp traffic (LID is the
-//! current default). Upstream `whatsapp-rust` 0.5 fixed this in PRs #170
+//! current default). Upstream `whatsapp-rust` fixed this in PRs #170
 //! (SKDM tracking) + #181 (LID/PN mapping) + sender-key dispatch.
 //!
 //! # Feature Flag
@@ -33,13 +33,13 @@
 //!
 //! # Migration note
 //!
-//! The upstream 0.5 `sqlite-storage` feature currently uses Diesel, whose
+//! The upstream `sqlite-storage` feature currently uses Diesel, whose
 //! native sqlite binding conflicts with the TinyAgents 1.3 / rusqlite 0.40
 //! baseline. Until OpenHuman owns a rusqlite-backed durable store for the
 //! WhatsApp backend traits, this channel uses wacore's in-memory backend and
 //! requires re-linking after restart.
 //!
-//! [`whatsapp-rust`]: https://docs.rs/whatsapp-rust/0.5
+//! [`whatsapp-rust`]: https://docs.rs/whatsapp-rust/0.7
 
 use crate::traits::{Channel, ChannelMessage, SendMessage};
 use anyhow::Result;
@@ -332,7 +332,7 @@ impl Channel for WhatsAppWebChannel {
                                 // the WhatsApp protocol. Drop them so the agent
                                 // doesn't react to its own outgoing messages.
                                 if info.source.is_from_me {
-                                    return;
+                                    continue;
                                 }
 
                                 let text = Self::extract_message_text(
