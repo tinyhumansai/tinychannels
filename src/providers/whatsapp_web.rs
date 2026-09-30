@@ -312,7 +312,7 @@ impl Channel for WhatsAppWebChannel {
         let allowed_groups_for_handler = Arc::clone(&self.allowed_groups);
 
         let mut builder = Bot::builder()
-            .with_backend(backend)
+            .with_backend_arc(backend)
             .with_transport_factory(transport_factory)
             .with_http_client(http_client)
             .with_runtime(TokioRuntime)
@@ -338,7 +338,7 @@ impl Channel for WhatsAppWebChannel {
                                 let text = Self::extract_message_text(
                                     msg.conversation.as_deref(),
                                     msg.extended_text_message
-                                        .as_ref()
+                                        .as_option()
                                         .and_then(|e| e.text.as_deref()),
                                 );
 
@@ -460,7 +460,7 @@ impl Channel for WhatsAppWebChannel {
         let mut bot = builder.build().await?;
         *self.client.lock() = Some(bot.client());
 
-        let bot_handle = bot.run().await?;
+        let bot_handle = bot.spawn();
         *self.bot_handle.lock() = Some(bot_handle);
 
         // Wire into the host lifecycle registry so SIGTERM and SIGINT both
