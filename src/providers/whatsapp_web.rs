@@ -296,8 +296,7 @@ impl Channel for WhatsAppWebChannel {
              session_path={} is reserved but not persisted in this build",
             self.session_path
         );
-        let backend: Arc<dyn wacore::store::traits::Backend> =
-            Arc::new(wacore::store::InMemoryBackend::new());
+        let backend = wacore::store::InMemoryBackend::new();
 
         let mut transport_factory = TokioWebSocketTransportFactory::new();
         if let Ok(ws_url) = std::env::var("WHATSAPP_WS_URL") {
@@ -323,7 +322,10 @@ impl Channel for WhatsAppWebChannel {
                 let allowed_groups = Arc::clone(&allowed_groups_for_handler);
                 async move {
                     match event.as_ref() {
-                        Event::Message(msg, info) => {
+                        Event::Messages(batch) => {
+                            for inbound in batch.iter() {
+                            let msg = &inbound.message;
+                            let info = &inbound.info;
                             // Self-echoes (messages this user sent from another
                             // linked device) are mirrored to all devices via
                             // the WhatsApp protocol. Drop them so the agent
@@ -403,6 +405,7 @@ impl Channel for WhatsAppWebChannel {
                                     Self::redact_phone(&normalized)
                                 );
                             }
+                            }
                         }
                         Event::Connected(_) => {
                             connected.store(true, Ordering::Release);
@@ -456,7 +459,7 @@ impl Channel for WhatsAppWebChannel {
         let mut bot = builder.build().await?;
         *self.client.lock() = Some(bot.client());
 
-        let bot_handle = bot.run().await?;
+        let bot_handle = bot.spawn();
         *self.bot_handle.lock() = Some(bot_handle);
 
         // Wire into the host lifecycle registry so SIGTERM and SIGINT both
