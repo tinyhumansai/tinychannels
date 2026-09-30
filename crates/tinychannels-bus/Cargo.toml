@@ -16,12 +16,6 @@ repository = "https://github.com/tinyhumansai/tinychannels"
 readme = "README.md"
 keywords = ["messaging", "channels", "tinybus", "openhuman"]
 categories = ["data-structures", "api-bindings"]
-# Consumers depend on this crate via GitHub (git dependency / vendored
-# submodule), not crates.io, so there is nothing to publish. This is the
-# contract crate the root `tinychannels` crate above pins by version; keeping
-# both `publish = false` keeps the story consistent end to end.
-publish = false
-
 [dependencies]
 # Every payload that crosses the boundary is a typed Serde value.
 # The `Channel` seam reports provider failures as `anyhow::Error`.
