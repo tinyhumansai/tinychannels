@@ -337,7 +337,7 @@ impl Channel for WhatsAppWebChannel {
                                 let text = Self::extract_message_text(
                                     msg.conversation.as_deref(),
                                     msg.extended_text_message
-                                        .as_ref()
+                                        .as_option()
                                         .and_then(|e| e.text.as_deref()),
                                 );
 
