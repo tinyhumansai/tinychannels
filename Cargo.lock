@@ -2616,7 +2616,7 @@ dependencies = [
 
 [[package]]
 name = "tinybus"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "async-trait",
  "flate2",
@@ -2635,7 +2635,7 @@ dependencies = [
 
 [[package]]
 name = "tinybus-macros"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2644,7 +2644,7 @@ dependencies = [
 
 [[package]]
 name = "tinybus-module"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "async-trait",
  "serde",
@@ -2656,7 +2656,7 @@ dependencies = [
 
 [[package]]
 name = "tinychannels"
-version = "0.1.3"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "async-imap",
@@ -2706,7 +2706,7 @@ dependencies = [
 
 [[package]]
 name = "tinychannels-bus"
-version = "0.1.3"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2728,7 +2728,7 @@ dependencies = [
 
 [[package]]
 name = "tinychannels-module"
-version = "0.1.3"
+version = "0.1.5"
 dependencies = [
  "log",
  "serde_json",
@@ -2742,13 +2742,16 @@ dependencies = [
 
 [[package]]
 name = "tinychannels-runtime"
-version = "0.1.3"
+version = "0.1.5"
 dependencies = [
+ "anyhow",
+ "async-trait",
  "rand 0.10.2",
  "tinychannels-bus",
  "tokio",
  "tokio-util",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

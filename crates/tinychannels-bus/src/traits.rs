@@ -124,6 +124,14 @@ pub trait Channel: Send + Sync {
         Ok(())
     }
 
+    /// Optional interaction capabilities (remote control, chat approvals,
+    /// progressive edits). Defaults to the provider table in
+    /// [`crate::capabilities::capabilities_for`], keyed by [`Channel::name`];
+    /// override only when an instance differs from its provider's default.
+    fn capabilities(&self) -> crate::capabilities::ChannelCapabilities {
+        crate::capabilities::capabilities_for(self.name())
+    }
+
     /// Whether this channel supports native emoji reactions on messages.
     /// Channels that return `true` must handle `[REACTION:<emoji>]` content in `send()`.
     fn supports_reactions(&self) -> bool {

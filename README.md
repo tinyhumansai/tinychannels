@@ -83,10 +83,27 @@ cargo test --features email,lark
 
 ## Repository Layout
 
-- `src/lib.rs` exports the crate surface.
-- `src/traits.rs` owns `Channel`, `ChannelMessage`, and `SendMessage`.
-- `src/config.rs` owns channel configuration structs migrated from OpenHuman.
-- `src/controllers/` owns connection definitions and backend response types.
-- `src/backend.rs` owns `ChannelBackend` and `ChannelManager`.
-- `src/context.rs`, `src/routes.rs`, and `src/runtime.rs` hold portable runtime helpers.
-- `docs/spec/README.md` tracks the high-level architecture notes.
+- `crates/tinychannels-bus/` is the contract: `Channel`, `ChannelMessage` and
+  `SendMessage` (`traits.rs`), channel configuration (`config.rs`), per-provider
+  capabilities (`capabilities.rs`), connection definitions, connect-form
+  parsing and backend response types (`controllers/`), and conversation keys
+  (`context.rs`).
+- `crates/tinychannels-runtime/` holds listener supervision, the bounded
+  dispatch loop, logout-scoped sessions, channel health checks and the
+  console `CliChannel`.
+- `crates/tinychannels-module/` is the loadable TinyBus module.
+- `src/lib.rs` exports the crate surface and re-exports the contract.
+- `src/providers/` holds the provider transports.
+- `src/delivery/` holds the durable outbound queue and `progressive/`, the
+  streaming reply driver (draft, thinking and filler bubbles) over a
+  host-supplied `ProgressiveSender`.
+- `src/remote/` implements `/status`, `/sessions`, `/new` and `/help` for every
+  provider with the `remote_control` capability, over a host-supplied
+  `RemoteControlHost`.
+- `src/approvals/` sends in-chat approval prompts for every provider with the
+  `chat_approvals` capability.
+- `src/relay/` holds the relay transport loop, the WebSocket dialer and the
+  process-wide transport registry.
+- `src/backend.rs` owns `ChannelBackend` and `ChannelManager`; `src/host/` is
+  the host service boundary; `src/routes.rs` and `src/runtime.rs` hold portable
+  runtime helpers.
