@@ -8,7 +8,7 @@ resolver = "3"
 
 [workspace.package]
 # Releases update this sole workspace version before packaging every crate.
-version = "0.1.3"
+version = "0.1.5"
 
 [package]
 name = "tinychannels"
@@ -67,7 +67,7 @@ whatsapp-web = [
 # The transport-free vocabulary shared with every TinyChannels host. The
 # provider stack below is the implementation of that contract; a host that
 # only names channel types depends on the bus crate alone.
-tinychannels-bus = { version = "0.1.3", path = "crates/tinychannels-bus" }
+tinychannels-bus = { version = "0.1.5", path = "crates/tinychannels-bus" }
 tinychannels-runtime = { version = "0.1.2", path = "crates/tinychannels-runtime" }
 anyhow = "1"
 async-trait = "0.1"
