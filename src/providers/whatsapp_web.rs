@@ -1,4 +1,4 @@
-//! WhatsApp Web channel backed by upstream [`whatsapp-rust`] 0.5.
+//! WhatsApp Web channel backed by upstream [`whatsapp-rust`] 0.7.
 //!
 //! # Why the upgrade
 //!
@@ -7,7 +7,7 @@
 //! contacts and group sender-key (`skmsg`) messages: the protocol layer
 //! decrypted the payload but never dispatched it to user code, breaking
 //! agent dispatch for the bulk of modern WhatsApp traffic (LID is the
-//! current default). Upstream `whatsapp-rust` 0.5 fixed this in PRs #170
+//! current default). Upstream `whatsapp-rust` fixed this in PRs #170
 //! (SKDM tracking) + #181 (LID/PN mapping) + sender-key dispatch.
 //!
 //! # Feature Flag
@@ -33,13 +33,13 @@
 //!
 //! # Migration note
 //!
-//! The upstream 0.5 `sqlite-storage` feature currently uses Diesel, whose
+//! The upstream `sqlite-storage` feature currently uses Diesel, whose
 //! native sqlite binding conflicts with the TinyAgents 1.3 / rusqlite 0.40
 //! baseline. Until OpenHuman owns a rusqlite-backed durable store for the
 //! WhatsApp backend traits, this channel uses wacore's in-memory backend and
 //! requires re-linking after restart.
 //!
-//! [`whatsapp-rust`]: https://docs.rs/whatsapp-rust/0.5
+//! [`whatsapp-rust`]: https://docs.rs/whatsapp-rust/0.7
 
 use crate::traits::{Channel, ChannelMessage, SendMessage};
 use anyhow::Result;
@@ -282,10 +282,10 @@ impl Channel for WhatsAppWebChannel {
     async fn listen(&self, tx: tokio::sync::mpsc::Sender<ChannelMessage>) -> Result<()> {
         *self.tx.lock() = Some(tx.clone());
 
-        use wacore::types::events::Event;
         use whatsapp_rust::TokioRuntime;
         use whatsapp_rust::bot::Bot;
         use whatsapp_rust::pair_code::PairCodeOptions;
+        use whatsapp_rust::types::events::Event;
         use whatsapp_rust_tokio_transport::TokioWebSocketTransportFactory;
         use whatsapp_rust_ureq_http_client::UreqHttpClient;
 
@@ -303,7 +303,7 @@ impl Channel for WhatsAppWebChannel {
              session_path={} is reserved but not persisted in this build",
             self.session_path
         );
-        let backend: Arc<dyn wacore::store::traits::Backend> =
+        let backend: Arc<dyn whatsapp_rust::store::Backend> =
             Arc::new(wacore::store::InMemoryBackend::new());
 
         let mut transport_factory = TokioWebSocketTransportFactory::new();

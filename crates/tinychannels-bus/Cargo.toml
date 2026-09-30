@@ -30,7 +30,7 @@ async-trait = "0.1"
 # agree on exactly, so they belong to the contract rather than to either host.
 sha2 = "0.11"
 hmac = "0.13"
-base64 = "0.22"
+base64 = "0.23"
 # The pairing-token store is a small in-memory set behind a lock.
 parking_lot = "0.12"
 # Pairing codes and message ids.
