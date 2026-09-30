@@ -5,6 +5,8 @@ pub mod progressive;
 pub mod queue;
 pub mod types;
 
+pub use ::tinychannels_bus::delivery::segment;
+pub use ::tinychannels_bus::delivery::{segment_delay, segment_for_delivery};
 pub use policy::{
     compute_backoff_ms, exceeded_max_retries, is_entry_eligible_for_recovery_retry,
     is_permanent_delivery_error, negotiate_delivery_durability,
@@ -16,8 +18,6 @@ pub use queue::{
     mark_delivery_platform_outcome_unknown, mark_delivery_platform_send_attempt_started,
     move_to_failed, recover_pending_deliveries,
 };
-pub use ::tinychannels_bus::delivery::segment;
-pub use ::tinychannels_bus::delivery::{segment_delay, segment_for_delivery};
 pub use types::{
     ActiveDeliveryClaimResult, DeliveryAttemptFailure, DeliveryAttemptResult,
     DeliveryAttemptSuccess, DeliveryQueueError, DeliveryQueueHandler, DeliveryQueueStore,
