@@ -311,7 +311,7 @@ impl Channel for WhatsAppWebChannel {
         let allowed_groups_for_handler = Arc::clone(&self.allowed_groups);
 
         let mut builder = Bot::builder()
-            .with_backend_arc(backend)
+            .with_backend(backend)
             .with_transport_factory(transport_factory)
             .with_http_client(http_client)
             .with_runtime(TokioRuntime)
