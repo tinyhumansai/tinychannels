@@ -296,8 +296,7 @@ impl Channel for WhatsAppWebChannel {
              session_path={} is reserved but not persisted in this build",
             self.session_path
         );
-        let backend: Arc<dyn wacore::store::traits::Backend> =
-            Arc::new(wacore::store::InMemoryBackend::new());
+        let backend = wacore::store::InMemoryBackend::new();
 
         let mut transport_factory = TokioWebSocketTransportFactory::new();
         if let Ok(ws_url) = std::env::var("WHATSAPP_WS_URL") {
@@ -324,7 +323,7 @@ impl Channel for WhatsAppWebChannel {
                 async move {
                     match event.as_ref() {
                         Event::Messages(batch) => {
-                            for inbound in batch {
+                            for inbound in batch.iter() {
                                 let msg = &inbound.message;
                                 let info = &inbound.info;
                                 // Self-echoes (messages this user sent from another

@@ -71,7 +71,7 @@ tinychannels-bus = { version = "0.1.5", path = "crates/tinychannels-bus" }
 tinychannels-runtime = { version = "0.1.2", path = "crates/tinychannels-runtime" }
 anyhow = "1"
 async-trait = "0.1"
-base64 = "0.22"
+base64 = "0.23"
 chrono = { version = "0.4", features = ["serde"] }
 directories = "6"
 futures = "0.3"
@@ -112,7 +112,7 @@ axum = { version = "0.8", default-features = false, features = ["http1", "json",
 serde-big-array = { version = "0.5", optional = true }
 whatsapp-rust = { version = "0.7", optional = true, default-features = false, features = ["tokio-runtime"] }
 whatsapp-rust-tokio-transport = { version = "0.7", optional = true, default-features = false }
-whatsapp-rust-ureq-http-client = { version = "0.7", optional = true, default-features = false }
+whatsapp-rust-ureq-http-client = { version = "0.7", optional = true }
 wacore = { version = "0.7", optional = true, default-features = false }
 
 [dev-dependencies]
