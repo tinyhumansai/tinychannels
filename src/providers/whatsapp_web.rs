@@ -99,6 +99,13 @@ pub struct WhatsAppWebChannel {
 
 #[cfg(feature = "whatsapp-web")]
 impl WhatsAppWebChannel {
+    fn non_self_echoes<T>(
+        messages: &[T],
+        is_from_me: impl Fn(&T) -> bool,
+    ) -> impl Iterator<Item = &T> {
+        messages.iter().filter(move |message| !is_from_me(message))
+    }
+
     /// Construct a channel. The bot does not connect until [`Channel::listen`]
     /// is invoked.
     pub fn new(
@@ -296,7 +303,8 @@ impl Channel for WhatsAppWebChannel {
              session_path={} is reserved but not persisted in this build",
             self.session_path
         );
-        let backend = wacore::store::InMemoryBackend::new();
+        let backend: Arc<dyn whatsapp_rust::store::Backend> =
+            Arc::new(wacore::store::InMemoryBackend::new());
 
         let mut transport_factory = TokioWebSocketTransportFactory::new();
         if let Ok(ws_url) = std::env::var("WHATSAPP_WS_URL") {
@@ -311,7 +319,7 @@ impl Channel for WhatsAppWebChannel {
         let allowed_groups_for_handler = Arc::clone(&self.allowed_groups);
 
         let mut builder = Bot::builder()
-            .with_backend(backend)
+            .with_backend_arc(backend)
             .with_transport_factory(transport_factory)
             .with_http_client(http_client)
             .with_runtime(TokioRuntime)
@@ -323,22 +331,21 @@ impl Channel for WhatsAppWebChannel {
                 async move {
                     match event.as_ref() {
                         Event::Messages(batch) => {
-                            for inbound in batch.iter() {
+                            for inbound in Self::non_self_echoes(
+                                &batch.messages,
+                                |inbound: &wacore::types::events::InboundMessage| {
+                                    inbound.info.source.is_from_me
+                                },
+                            ) {
                                 let msg = &inbound.message;
                                 let info = &inbound.info;
                                 // Self-echoes (messages this user sent from another
                                 // linked device) are mirrored to all devices via
                                 // the WhatsApp protocol. Drop them so the agent
                                 // doesn't react to its own outgoing messages.
-                                if info.source.is_from_me {
-                                    continue;
-                                }
-
                                 let text = Self::extract_message_text(
                                     msg.conversation.as_deref(),
-                                    msg.extended_text_message
-                                        .as_option()
-                                        .and_then(|e| e.text.as_deref()),
+                                    msg.extended_text_message.text.as_deref(),
                                 );
 
                                 // Sender JID can use either the legacy `s.whatsapp.net`

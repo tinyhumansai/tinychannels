@@ -147,6 +147,17 @@ fn whatsapp_web_extract_message_text_empty_when_missing() {
 
 #[test]
 #[cfg(feature = "whatsapp-web")]
+fn whatsapp_web_batch_skips_self_echoes_without_dropping_following_messages() {
+    let batch = [false, true, false];
+    let delivered: Vec<_> = WhatsAppWebChannel::non_self_echoes(&batch, |is_from_me| *is_from_me)
+        .copied()
+        .collect();
+
+    assert_eq!(delivered, [false, false]);
+}
+
+#[test]
+#[cfg(feature = "whatsapp-web")]
 fn whatsapp_web_is_group_jid_recognises_group() {
     assert!(WhatsAppWebChannel::is_group_jid("123456@g.us"));
     assert!(WhatsAppWebChannel::is_group_jid("  4567@g.us  "));
