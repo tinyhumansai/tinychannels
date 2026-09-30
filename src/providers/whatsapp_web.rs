@@ -296,8 +296,7 @@ impl Channel for WhatsAppWebChannel {
              session_path={} is reserved but not persisted in this build",
             self.session_path
         );
-        let backend: Arc<dyn wacore::store::traits::Backend> =
-            Arc::new(wacore::store::InMemoryBackend::new());
+        let backend = wacore::store::InMemoryBackend::new();
 
         let mut transport_factory = TokioWebSocketTransportFactory::new();
         if let Ok(ws_url) = std::env::var("WHATSAPP_WS_URL") {
@@ -323,13 +322,17 @@ impl Channel for WhatsAppWebChannel {
                 let allowed_groups = Arc::clone(&allowed_groups_for_handler);
                 async move {
                     match event.as_ref() {
-                        Event::Message(msg, info) => {
-                            // Self-echoes (messages this user sent from another
-                            // linked device) are mirrored to all devices via
-                            // the WhatsApp protocol. Drop them so the agent
-                            // doesn't react to its own outgoing messages.
-                            if info.source.is_from_me {
-                                return;
+                        Event::Messages(batch) => {
+                            for inbound in batch {
+                                let msg = &inbound.message;
+                                let info = &inbound.info;
+                                // Self-echoes (messages this user sent from another
+                                // linked device) are mirrored to all devices via
+                                // the WhatsApp protocol. Drop them so the agent
+                                // doesn't react to its own outgoing messages.
+                                if info.source.is_from_me {
+                                    return;
+                                }
                             }
 
                             let text = Self::extract_message_text(
@@ -453,10 +456,9 @@ impl Channel for WhatsAppWebChannel {
             );
         }
 
-        let mut bot = builder.build().await?;
-        *self.client.lock() = Some(bot.client());
-
-        let bot_handle = bot.run().await?;
+        let bot = builder.build().await?;
+        let bot_handle = bot.spawn();
+        *self.client.lock() = Some(bot_handle.client());
         *self.bot_handle.lock() = Some(bot_handle);
 
         // Wire into the host lifecycle registry so SIGTERM and SIGINT both
