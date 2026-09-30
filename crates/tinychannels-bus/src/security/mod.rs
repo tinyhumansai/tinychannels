@@ -286,3 +286,6 @@ pub fn constant_time_eq(a: &str, b: &str) -> bool {
     }
     (len_diff == 0) & (byte_diff == 0)
 }
+
+#[cfg(test)]
+mod test;
