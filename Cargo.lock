@@ -53,12 +53,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "arrayref"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76a2e8124351fda1ef8aaaa3bbd7ebbcb486bbcd4225aca0aa0d84bb2db8fecb"
-
-[[package]]
 name = "assert-json-diff"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -356,12 +350,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
 
 [[package]]
-name = "bytemuck"
-version = "1.25.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95832e849adfb21180ccb6826a99da14e5d266ae5c2e668e1602cf234f153797"
-
-[[package]]
 name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -448,21 +436,6 @@ name = "cmov"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
-
-[[package]]
-name = "compact_str"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9dfdd1c2274d9aa354115b09dc9a901d6c5576818cdf70d14cae2bdb47df00ab"
-dependencies = [
- "castaway",
- "cfg-if",
- "itoa",
- "rustversion",
- "ryu",
- "serde",
- "static_assertions",
-]
 
 [[package]]
 name = "compact_str"
@@ -593,21 +566,6 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
-version = "4.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97fb8b7c4503de7d6ae7b42ab72a5a59857b4c937ec27a3d4539dba95b5ab2be"
-dependencies = [
- "cfg-if",
- "cpufeatures 0.2.17",
- "curve25519-dalek-derive",
- "fiat-crypto 0.2.9",
- "rustc_version",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "curve25519-dalek"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5eed333089e2e1c1ac8c6c0398e5e2497b4c9926ca6d0365ed1e099afa5bc23"
@@ -615,7 +573,7 @@ dependencies = [
  "cfg-if",
  "cpufeatures 0.3.1",
  "curve25519-dalek-derive",
- "fiat-crypto 0.3.0",
+ "fiat-crypto",
  "rustc_version",
  "subtle",
  "zeroize",
@@ -702,27 +660,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "derive_more"
-version = "2.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d751e9e49156b02b44f9c1815bcb94b984cdcc4396ecc32521c739452808b134"
-dependencies = [
- "derive_more-impl",
-]
-
-[[package]]
-name = "derive_more-impl"
-version = "2.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "799a97264921d8623a957f6c3b9011f3b5492f557bbb7a5a19b7fa6d06ba8dcb"
-dependencies = [
- "proc-macro2",
- "quote",
- "rustc_version",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -805,26 +742,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e079f19b08ca6239f47f8ba8509c11cf3ea30095831f7fed61441475edd8c449"
 
 [[package]]
-name = "env_filter"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "900d271a03799a1ee8d1ca9b19893b48ca674a9284fefcfb85f05e74ed314217"
-dependencies = [
- "log",
- "regex",
-]
-
-[[package]]
-name = "env_logger"
-version = "0.11.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de671bd27a75a797dc9ae289ba1e77276e75e2026408aab65185384e2d5cd3f6"
-dependencies = [
- "env_filter",
- "log",
-]
-
-[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -837,7 +754,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -883,12 +800,6 @@ name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
-
-[[package]]
-name = "fiat-crypto"
-version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 
 [[package]]
 name = "fiat-crypto"
@@ -1931,7 +1842,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1991,12 +1902,6 @@ dependencies = [
  "ppv-lite86",
  "rand_core 0.9.5",
 ]
-
-[[package]]
-name = "rand_core"
-version = "0.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 
 [[package]]
 name = "rand_core"
@@ -2196,7 +2101,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2591,7 +2496,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2716,7 +2621,7 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
- "wacore 0.6.0",
+ "wacore",
  "webpki-roots 1.0.9",
  "whatsapp-rust",
  "whatsapp-rust-tokio-transport",
@@ -3019,26 +2924,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "typed-builder"
-version = "0.23.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31aa81521b70f94402501d848ccc0ecaa8f93c8eb6999eb9747e72287757ffda"
-dependencies = [
- "typed-builder-macro",
-]
-
-[[package]]
-name = "typed-builder-macro"
-version = "0.23.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "076a02dc54dd46795c2e9c8282ed40bcfb1e22747e955de9389a1de28190fb26"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
 name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3156,48 +3041,6 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "wacore"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7227b6c8bc63d4a0d119b7993147e7e2d99d522e1511306482f7fd506a83201"
-dependencies = [
- "aes",
- "anyhow",
- "async-channel 2.5.0",
- "async-lock",
- "async-trait",
- "base64 0.22.1",
- "bytes",
- "chrono",
- "ctr",
- "event-listener 5.4.2",
- "flate2",
- "futures",
- "hex",
- "hkdf",
- "hmac",
- "itoa",
- "log",
- "md5",
- "portable-atomic",
- "prost",
- "rand 0.10.2",
- "serde",
- "serde-big-array",
- "serde_json",
- "sha1 0.11.0",
- "sha2",
- "thiserror 2.0.20",
- "typed-builder",
- "wacore-appstate 0.6.0",
- "wacore-binary 0.6.0",
- "wacore-derive 0.6.0",
- "wacore-libsignal 0.6.0",
- "wacore-noise 0.6.0",
- "waproto 0.6.0",
-]
-
-[[package]]
-name = "wacore"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6139a98fece24956f1d6bf164c82c5daefb43834813d96a879b41e010707c2c2"
@@ -3213,7 +3056,7 @@ dependencies = [
  "buffa-build",
  "bytes",
  "chrono",
- "compact_str 0.10.0",
+ "compact_str",
  "ctr",
  "event-listener 5.4.2",
  "futures",
@@ -3235,35 +3078,13 @@ dependencies = [
  "smoothutf8",
  "subtle",
  "thiserror 2.0.20",
- "wacore-appstate 0.7.0",
- "wacore-binary 0.7.0",
- "wacore-derive 0.7.0",
- "wacore-libsignal 0.7.0",
- "wacore-noise 0.7.0",
- "waproto 0.7.0",
+ "wacore-appstate",
+ "wacore-binary",
+ "wacore-derive",
+ "wacore-libsignal",
+ "wacore-noise",
+ "waproto",
  "zeroize",
-]
-
-[[package]]
-name = "wacore-appstate"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc1b8f857a5a9b7c653a7602fa3205a895282ada065b0c5891e0cd89d4f02289"
-dependencies = [
- "anyhow",
- "bytemuck",
- "hex",
- "hkdf",
- "log",
- "prost",
- "serde",
- "serde-big-array",
- "serde_json",
- "sha2",
- "thiserror 2.0.20",
- "wacore-binary 0.6.0",
- "wacore-libsignal 0.6.0",
- "waproto 0.6.0",
 ]
 
 [[package]]
@@ -3283,26 +3104,9 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror 2.0.20",
- "wacore-binary 0.7.0",
- "wacore-libsignal 0.7.0",
- "waproto 0.7.0",
-]
-
-[[package]]
-name = "wacore-binary"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c32fb1fef070c94c1311d14b86787bdf70572ba0fae1e21874a0c97ec1f43b09"
-dependencies = [
- "bytes",
- "compact_str 0.9.1",
- "flate2",
- "hashify",
- "itoa",
- "serde",
- "serde_json",
- "stable_deref_trait",
- "yoke",
+ "wacore-binary",
+ "wacore-libsignal",
+ "waproto",
 ]
 
 [[package]]
@@ -3312,7 +3116,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e56452f93ac1e6167a6ebafec23971fe1ca9332b27cc887520f4a6753956fde"
 dependencies = [
  "bytes",
- "compact_str 0.10.0",
+ "compact_str",
  "itoa",
  "serde",
  "serde_json",
@@ -3325,17 +3129,6 @@ dependencies = [
 
 [[package]]
 name = "wacore-derive"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "545b18eada5c7412083ccac83a7de3910521186dd513bab7d6d3b8dcb792ff1c"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "wacore-derive"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53cba66b01df4bef777c3d131af434dea0f3c8a7da2e42d7fb74e11fd65fb094"
@@ -3343,39 +3136,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.6",
-]
-
-[[package]]
-name = "wacore-libsignal"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "924d8bb6009b53ac9d17b21c5bbe3fa92323c31e407c631e86d22799a0bb17b4"
-dependencies = [
- "aes",
- "arrayref",
- "async-trait",
- "bytes",
- "cbc",
- "chrono",
- "ctr",
- "curve25519-dalek 4.1.3",
- "derive_more",
- "displaydoc",
- "ghash",
- "hex",
- "hkdf",
- "hmac",
- "log",
- "prost",
- "rand 0.10.2",
- "serde",
- "sha1 0.11.0",
- "sha2",
- "subtle",
- "thiserror 2.0.20",
- "uuid",
- "waproto 0.6.0",
- "x25519-dalek 2.0.1",
 ]
 
 [[package]]
@@ -3392,7 +3152,7 @@ dependencies = [
  "cbc",
  "chrono",
  "ctr",
- "curve25519-dalek 5.0.0",
+ "curve25519-dalek",
  "ghash",
  "hex",
  "hkdf",
@@ -3405,28 +3165,9 @@ dependencies = [
  "sha2",
  "subtle",
  "thiserror 2.0.20",
- "wacore-derive 0.7.0",
- "waproto 0.7.0",
- "x25519-dalek 3.0.0",
-]
-
-[[package]]
-name = "wacore-noise"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ac024824c3c475d0d82cce07850db8ff863d794299e95e2fab6878afcc7511c"
-dependencies = [
- "anyhow",
- "bytes",
- "hkdf",
- "log",
- "prost",
- "rand 0.10.2",
- "sha2",
- "thiserror 2.0.20",
- "wacore-binary 0.6.0",
- "wacore-libsignal 0.6.0",
- "waproto 0.6.0",
+ "wacore-derive",
+ "waproto",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -3443,9 +3184,9 @@ dependencies = [
  "rand 0.10.2",
  "sha2",
  "thiserror 2.0.20",
- "wacore-binary 0.7.0",
- "wacore-libsignal 0.7.0",
- "waproto 0.7.0",
+ "wacore-binary",
+ "wacore-libsignal",
+ "waproto",
 ]
 
 [[package]]
@@ -3455,16 +3196,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa7760aed19e106de2c7c0b581b509f2f25d3dacaf737cb82ac61bc6d760b0e"
 dependencies = [
  "try-lock",
-]
-
-[[package]]
-name = "waproto"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ad2a847ddec045108ef1d06db4c09d5ceecc4e75f4a0eb3f97f3baad9505f35"
-dependencies = [
- "prost",
- "serde",
 ]
 
 [[package]]
@@ -3605,34 +3336,37 @@ dependencies = [
 
 [[package]]
 name = "whatsapp-rust"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68e2491e3a5a4ae149d623da4dcaf05ee5feb7f0181b4be375e0980bb2247292"
+checksum = "3cb354c32641cfe832bf5c5767a016762234c5efd1b4ce979e2b3e32175d96bc"
 dependencies = [
  "anyhow",
  "async-channel 2.5.0",
  "async-lock",
  "async-trait",
  "base64 0.22.1",
+ "buffa",
  "bytes",
  "chrono",
- "env_logger",
  "event-listener 5.4.2",
  "futures",
+ "getrandom 0.4.3",
+ "hashbrown 0.17.1",
  "hex",
  "itoa",
  "log",
  "portable-atomic",
- "prost",
  "rand 0.10.2",
  "scopeguard",
  "serde",
  "serde_json",
+ "smallvec",
  "thiserror 2.0.20",
  "tokio",
- "wacore 0.6.0",
- "wacore-binary 0.6.0",
- "waproto 0.6.0",
+ "wacore",
+ "wacore-binary",
+ "waproto",
+ "zeroize",
 ]
 
 [[package]]
@@ -3652,21 +3386,21 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-websockets",
- "wacore 0.7.0",
+ "wacore",
  "webpki-roots 1.0.9",
 ]
 
 [[package]]
 name = "whatsapp-rust-ureq-http-client"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa3d540b7e7a294cbd6a481b79e642e8ffc17f0088b7b04ab54ff0125f4a2cd4"
+checksum = "1ebb64db9f84faa5eddb851ba7f44566363523bbdb88d5772fcc7d168e177797"
 dependencies = [
  "anyhow",
  "async-trait",
  "tokio",
  "ureq",
- "wacore 0.6.0",
+ "wacore",
 ]
 
 [[package]]
@@ -3853,23 +3587,11 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "x25519-dalek"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7e468321c81fb07fa7f4c636c3972b9100f0346e5b6a9f2bd0603a52f7ed277"
-dependencies = [
- "curve25519-dalek 4.1.3",
- "rand_core 0.6.4",
- "serde",
- "zeroize",
-]
-
-[[package]]
-name = "x25519-dalek"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7e8131a03190127fb2263afc72b322ecadae46b6ff8c6f399ff5d02f5559af6"
 dependencies = [
- "curve25519-dalek 5.0.0",
+ "curve25519-dalek",
  "rand_core 0.10.1",
  "zeroize",
 ]
@@ -3953,20 +3675,6 @@ name = "zeroize"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e"
-dependencies = [
- "zeroize_derive",
-]
-
-[[package]]
-name = "zeroize_derive"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c50655cbb0fe3fc43170059e702f1ce5e19b84cec58dc87b037a09935c2f328"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
 
 [[package]]
 name = "zerotrie"
