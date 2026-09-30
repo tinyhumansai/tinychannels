@@ -105,7 +105,7 @@ jobs:
 
       # The version lives under `[workspace.package]` and every member inherits
       # it with `version.workspace = true`, so this rewrites one value for all
-      # three crates. Targeting `[package]` (as this step used to) would
+      # four crates. Targeting `[package]` (as this step used to) would
       # silently match nothing and tag the previous version.
       #
       # Nothing rewrites a dependency requirement any more: the crates are not
@@ -127,7 +127,7 @@ jobs:
           # Assert the result rather than trusting the command: a lockfile that
           # silently stayed behind would tag a release whose artifacts carry the
           # previous version in their names.
-          for crate in "$CRATE_NAME" tinychannels-bus tinychannels-module; do
+          for crate in "$CRATE_NAME" tinychannels-bus tinychannels-runtime tinychannels-module; do
             grep -A1 "^name = \"$crate\"$" Cargo.lock \
               | grep -q "^version = \"$NEXT_VERSION\"$" \
               || { echo "Cargo.lock still not at $NEXT_VERSION for $crate"; exit 1; }
