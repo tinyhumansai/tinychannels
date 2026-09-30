@@ -10,6 +10,16 @@ use rand::RngExt as _;
 use tinychannels_bus::{Channel, ChannelMessage};
 use tokio_util::sync::CancellationToken;
 
+mod cli;
+mod dispatch;
+mod health;
+mod session;
+
+pub use cli::CliChannel;
+pub use dispatch::{RuntimeChannelMessage, run_dispatch_loop};
+pub use health::{ChannelHealthState, check_channels_health, classify_health_result};
+pub use session::{ChannelSession, run_in_session};
+
 /// Maximum reconnect jitter added to a listener retry.
 pub const MAX_JITTER_MS: u64 = 1_000;
 
@@ -182,6 +192,10 @@ pub fn spawn_scoped_typing_task(
         }
     })
 }
+
+#[cfg(test)]
+#[path = "runtime_extras_tests.rs"]
+mod runtime_extras_tests;
 
 #[cfg(test)]
 mod tests {

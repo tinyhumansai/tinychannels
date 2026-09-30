@@ -1,10 +1,10 @@
 //! Telegram channel — long-polls the Bot API for updates.
 //!
-//! This is the **transport** half of the Telegram provider, ported into
-//! TinyChannels. Host glue (remote control, event-bus subscribers, approval
-//! surface) stays in OpenHuman and re-exports [`TelegramChannel`] from here.
+//! This is the Telegram transport. Remote control and in-chat approvals are
+//! provider-independent and live in [`crate::remote`] and
+//! [`crate::approvals`]; the names below keep the older Telegram-specific
+//! paths compiling.
 
-mod approval;
 mod attachments;
 mod channel;
 mod channel_core;
@@ -12,16 +12,19 @@ mod channel_ops;
 mod channel_recv;
 mod channel_send;
 mod channel_types;
-mod remote_control;
-pub mod session_store;
 mod text;
 
-pub use approval::{TELEGRAM_APPROVAL_CLIENT_ID, format_approval_prompt};
 pub use channel_types::TelegramChannel;
-pub use remote_control::{
-    SESSIONS_LIST_LIMIT, TelegramRemoteCommand, build_new_session_response,
+
+/// Approval-context client id for Telegram turns: the channel name, as for
+/// every channel.
+pub const TELEGRAM_APPROVAL_CLIENT_ID: &str = "telegram";
+
+pub use crate::approvals::format_approval_prompt;
+pub use crate::remote::{
+    RemoteCommand as TelegramRemoteCommand, SESSIONS_LIST_LIMIT, build_new_session_response,
     build_remote_help_response, build_status_response, format_session_line,
-    parse_telegram_remote_command,
+    parse_remote_command as parse_telegram_remote_command,
 };
 
 #[cfg(any(test, debug_assertions))]

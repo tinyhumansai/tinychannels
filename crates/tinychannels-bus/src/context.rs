@@ -73,13 +73,29 @@ pub fn conversation_memory_key(msg: &ChannelMessage) -> String {
 }
 
 pub fn conversation_history_key(msg: &ChannelMessage) -> String {
-    let base_key = format!("{}_{}_{}", msg.channel, msg.sender, msg.reply_target);
-    // Telegram uses thread_ts as a reply target for topics, not as a distinct
-    // conversation boundary.
-    if msg.channel == "telegram" {
+    conversation_history_key_parts(
+        &msg.channel,
+        &msg.sender,
+        &msg.reply_target,
+        msg.thread_ts.as_deref(),
+    )
+}
+
+/// [`conversation_history_key`] from individual fields, for callers that see
+/// an inbound message as event fields rather than a [`ChannelMessage`].
+pub fn conversation_history_key_parts(
+    channel: &str,
+    sender: &str,
+    reply_target: &str,
+    thread_ts: Option<&str>,
+) -> String {
+    let base_key = format!("{channel}_{sender}_{reply_target}");
+    // Some providers (Telegram topics) use thread_ts as a reply target, not as
+    // a distinct conversation boundary.
+    if crate::capabilities::capabilities_for(channel).history_key_ignores_thread {
         return base_key;
     }
-    if let Some(thread_ts) = msg.thread_ts.as_deref() {
+    if let Some(thread_ts) = thread_ts {
         let thread_ts = thread_ts.trim();
         if !thread_ts.is_empty() {
             return format!("{base_key}_thread:{thread_ts}");

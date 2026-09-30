@@ -32,9 +32,11 @@ pub use tinychannels_bus;
 // are `pub use` of the *same* items, not copies — there is exactly one
 // `ChannelInboundEnvelope` in the build.
 pub use tinychannels_bus::{
-    adapters, channel, config, context, controllers, error, names, security, text, traits, version,
+    adapters, capabilities, channel, config, context, controllers, error, names, security, text,
+    traits, version,
 };
 
+pub mod approvals;
 pub mod backend;
 pub mod delivery;
 pub mod factory;
@@ -42,6 +44,7 @@ pub mod harness;
 pub mod host;
 pub mod providers;
 pub mod relay;
+pub mod remote;
 pub mod routes;
 pub mod runtime;
 
@@ -49,18 +52,18 @@ pub use backend::{ChannelBackend, ChannelManager};
 pub use factory::{DefaultHttpClients, HttpClientFactory, build_channels};
 pub use host::{ChannelHost, ChannelHostBuilder, HostCapabilities, NoopHost, ProviderContext};
 pub use providers::{
-    DingTalkChannel, DiscordChannel, IMessageChannel, IrcChannel, IrcChannelConfig, LinqChannel,
-    MattermostChannel, QQChannel, SignalChannel, SlackChannel, TelegramChannel, WhatsAppChannel,
-    WhatsAppWebChannel, YuanbaoChannel,
+    CliChannel, DingTalkChannel, DiscordChannel, IMessageChannel, IrcChannel, IrcChannelConfig,
+    LinqChannel, MattermostChannel, QQChannel, SignalChannel, SlackChannel, TelegramChannel,
+    WhatsAppChannel, WhatsAppWebChannel, YuanbaoChannel,
 };
 pub use tinychannels_bus::{
-    BUS_NAME, CONTRACT_VERSION, Channel, ChannelAuthMode, ChannelDefinition,
+    BUS_NAME, CONTRACT_VERSION, Channel, ChannelAuthMode, ChannelCapabilities, ChannelDefinition,
     ChannelInboundEnvelope, ChannelMessage, ChannelOutboundIntent, ChannelSendExt, ChannelsConfig,
     DeliveryDurability, HOST_BUS_NAME, HOST_OBJECT_PATH, METHODS, OBJECT_PATH, OutboundPayload,
     Result, SendMessage, TinyChannelsError, build_session_key_for_inbound_envelope,
-    inbound_envelope_from_legacy_message, is_compatible, legacy_message_from_inbound_envelope,
-    legacy_message_value_from_outbound_intent, methods, outbound_intent_from_legacy_message,
-    outbound_intent_from_send_message,
+    capabilities_for, inbound_envelope_from_legacy_message, is_compatible,
+    legacy_message_from_inbound_envelope, legacy_message_value_from_outbound_intent, methods,
+    outbound_intent_from_legacy_message, outbound_intent_from_send_message,
 };
 // Re-exported separately so each can follow its provider's feature gate.
 #[cfg(feature = "email-send")]

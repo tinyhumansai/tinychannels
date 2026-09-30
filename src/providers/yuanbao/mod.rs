@@ -15,6 +15,7 @@
 
 pub mod channel;
 pub mod config;
+pub mod connect;
 pub mod connection;
 pub mod cos;
 pub mod errors;
