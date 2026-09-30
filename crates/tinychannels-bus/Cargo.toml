@@ -5,8 +5,8 @@ edition = "2024"
 # Not published to a package registry. Every consumer takes this repository as
 # a git submodule and a path dependency, and the loadable module is delivered as
 # a release artifact pinned by its SHA-256 digest rather than a crate.
-# `publish = false` makes that a
-# property of the manifest instead of a convention someone has to remember, so
+# `publish = false` makes that a property of the manifest instead of a
+# convention someone has to remember, so
 # an accidental `cargo publish` fails locally rather than claiming a name on
 # crates.io that cannot be taken back.
 publish = false

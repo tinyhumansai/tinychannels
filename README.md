@@ -39,10 +39,10 @@ TinyChannels includes optional provider implementations that must be explicitly 
 | **WhatsApp Web** | `whatsapp-web` | `WhatsAppWebChannel` (multi-device via whatsapp-rust) | `whatsapp-rust`, `whatsapp-rust-tokio-transport`, `whatsapp-rust-ureq-http-client`, `wacore` |
 
 > **Not on crates.io.** This crate and `tinychannels-bus` are `publish = false`
-> OpenHuman vendors them under `vendor/tinychannels` and depends on the local
-> paths. Other consumers can use the direct Git dependency shown below. What a
-> host *loads* at runtime is the compiled `tinychannels-module` `cdylib`, delivered as a release artifact and
-> pinned by SHA-256 — not a published crate.
+> OpenHuman uses the vendored path dependency under `vendor/tinychannels`.
+> Other consumers can use the direct Git dependency shown below. What a host
+> *loads* at runtime is the compiled `tinychannels-module` `cdylib`, delivered
+> as a release artifact and pinned by SHA-256, not a published crate.
 
 The default feature set (`default = []`) does not include these providers. To use them, add to your `Cargo.toml`:
 
