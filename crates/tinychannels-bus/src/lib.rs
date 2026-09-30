@@ -53,6 +53,7 @@ pub mod channel;
 pub mod config;
 pub mod context;
 pub mod controllers;
+pub mod delivery;
 pub mod error;
 pub mod names;
 pub mod relay;

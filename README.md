@@ -96,7 +96,9 @@ cargo test --features email,lark
 - `src/providers/` holds the provider transports.
 - `src/delivery/` holds the durable outbound queue and `progressive/`, the
   streaming reply driver (draft, thinking and filler bubbles) over a
-  host-supplied `ProgressiveSender`.
+  host-supplied `ProgressiveSender`. The reply splitter
+  (`segment_for_delivery`) lives in `tinychannels-bus` (`delivery::segment`) and
+  is re-exported here.
 - `src/remote/` implements `/status`, `/sessions`, `/new` and `/help` for every
   provider with the `remote_control` capability, over a host-supplied
   `RemoteControlHost`.
