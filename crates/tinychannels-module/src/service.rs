@@ -322,8 +322,8 @@ async fn setup(connection: Connection) -> BusResult<()> {
     unreachable_pub,
     reason = "generated C ABI symbols are documented by the TinyBus module SDK"
 )]
-mod exports {
-    tinybus_module::module_export! {
+pub(crate) mod exports {
+    tinybus_module::module_export_optional_static! {
         setup = super::setup,
         worker_threads = 4,
         provides = ["ai.tinyhumans.tinychannels.Channels"],
