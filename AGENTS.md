@@ -84,6 +84,11 @@ APIs with `Result<T>` using the crate error type exported from `src/error.rs`.
 Keep public exports centralized in `src/lib.rs` so downstream users have a
 predictable surface.
 
+The `src/delivery/mod.rs` re-export of `tinychannels_bus::delivery::segment`
+is a scoped compatibility exception: it preserves the existing
+`tinychannels::delivery::segment` path. Keep this exception limited to that
+legacy path; new public exports still belong in `src/lib.rs`.
+
 ## Testing Guidelines
 
 Place integration tests in `tests/` and use descriptive test names such as
