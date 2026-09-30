@@ -275,10 +275,10 @@ impl Channel for WhatsAppWebChannel {
     async fn listen(&self, tx: tokio::sync::mpsc::Sender<ChannelMessage>) -> Result<()> {
         *self.tx.lock() = Some(tx.clone());
 
-        use wacore::types::events::Event;
         use whatsapp_rust::TokioRuntime;
         use whatsapp_rust::bot::Bot;
         use whatsapp_rust::pair_code::PairCodeOptions;
+        use whatsapp_rust::types::events::Event;
         use whatsapp_rust_tokio_transport::TokioWebSocketTransportFactory;
         use whatsapp_rust_ureq_http_client::UreqHttpClient;
 
@@ -323,7 +323,10 @@ impl Channel for WhatsAppWebChannel {
                 let allowed_groups = Arc::clone(&allowed_groups_for_handler);
                 async move {
                     match event.as_ref() {
-                        Event::Message(msg, info) => {
+                        Event::Messages(batch) => {
+                            for inbound in batch {
+                            let msg = &inbound.message;
+                            let info = &inbound.info;
                             // Self-echoes (messages this user sent from another
                             // linked device) are mirrored to all devices via
                             // the WhatsApp protocol. Drop them so the agent
@@ -402,6 +405,7 @@ impl Channel for WhatsAppWebChannel {
                                     "WhatsApp Web: message from {} not in allowed list",
                                     Self::redact_phone(&normalized)
                                 );
+                            }
                             }
                         }
                         Event::Connected(_) => {
