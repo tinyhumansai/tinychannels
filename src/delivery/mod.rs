@@ -16,6 +16,7 @@ pub use queue::{
     mark_delivery_platform_outcome_unknown, mark_delivery_platform_send_attempt_started,
     move_to_failed, recover_pending_deliveries,
 };
+pub use tinychannels_bus::delivery::segment;
 pub use tinychannels_bus::delivery::{segment_delay, segment_for_delivery};
 pub use types::{
     ActiveDeliveryClaimResult, DeliveryAttemptFailure, DeliveryAttemptResult,
