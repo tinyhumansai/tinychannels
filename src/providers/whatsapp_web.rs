@@ -323,7 +323,7 @@ impl Channel for WhatsAppWebChannel {
                 async move {
                     match event.as_ref() {
                         Event::Messages(batch) => {
-                            for inbound in batch {
+                            for inbound in batch.iter() {
                                 let msg = &inbound.message;
                                 let info = &inbound.info;
                                 // Self-echoes (messages this user sent from another
@@ -336,7 +336,9 @@ impl Channel for WhatsAppWebChannel {
 
                                 let text = Self::extract_message_text(
                                     msg.conversation.as_deref(),
-                                    msg.extended_text_message.text.as_deref(),
+                                    msg.extended_text_message
+                                        .as_option()
+                                        .and_then(|e| e.text.as_deref()),
                                 );
 
                                 // Sender JID can use either the legacy `s.whatsapp.net`
@@ -455,8 +457,9 @@ impl Channel for WhatsAppWebChannel {
         }
 
         let bot = builder.build().await?;
+        *self.client.lock() = Some(bot.client());
+
         let bot_handle = bot.spawn();
-        *self.client.lock() = Some(bot_handle.client());
         *self.bot_handle.lock() = Some(bot_handle);
 
         // Wire into the host lifecycle registry so SIGTERM and SIGINT both
