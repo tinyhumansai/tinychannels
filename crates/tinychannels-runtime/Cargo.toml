@@ -11,7 +11,7 @@ publish = false
 anyhow = "1"
 async-trait = "0.1"
 rand = "0.10"
-tinychannels-bus = { version = "0.1.2", path = "../tinychannels-bus" }
+tinychannels-bus = { path = "../tinychannels-bus" }
 tokio = { version = "1", default-features = false, features = ["io-std", "io-util", "macros", "rt", "sync", "time"] }
 tokio-util = { version = "0.7", default-features = false, features = ["rt"] }
 tracing = "0.1"

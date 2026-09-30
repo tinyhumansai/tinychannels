@@ -1,6 +1,15 @@
 [workspace]
-members = ["crates/tinychannels-bus", "crates/tinychannels-runtime", "crates/tinychannels-module"]
-default-members = [".", "crates/tinychannels-bus", "crates/tinychannels-runtime", "crates/tinychannels-module"]
+members = [
+    "crates/tinychannels-bus",
+    "crates/tinychannels-module",
+    "crates/tinychannels-runtime",
+]
+default-members = [
+    ".",
+    "crates/tinychannels-bus",
+    "crates/tinychannels-module",
+    "crates/tinychannels-runtime",
+]
 # The bus is a submodule with its own workspace; it is a path dependency of the
 # module crate, not a member here.
 exclude = ["vendor/tinybus"]
@@ -18,16 +27,20 @@ version = "0.1.5"
 name = "tinychannels"
 version.workspace = true
 edition = "2024"
+# Not published to a package registry. Every consumer takes this repository as
+# a git submodule and a path dependency, and the loadable module is delivered as
+# a release artifact pinned by its SHA-256 digest rather than a crate.
+# `publish = false` makes that a property of the manifest instead of a
+# convention someone has to remember, so
+# an accidental `cargo publish` fails locally rather than claiming a name on
+# crates.io that cannot be taken back.
+publish = false
 license = "GPL-3.0-only"
 description = "Pluggable channel and messaging primitives for OpenHuman harness communication."
 repository = "https://github.com/tinyhumansai/tinychannels"
 readme = "README.md"
 keywords = ["messaging", "channels", "openhuman", "harness"]
 categories = ["asynchronous", "api-bindings"]
-# Consumers depend on this crate via GitHub (git dependency / vendored
-# submodule), not crates.io, so there is nothing to publish. See the
-# equivalent note in crates/tinychannels-bus/Cargo.toml.
-publish = false
 
 [features]
 default = []
@@ -71,8 +84,11 @@ whatsapp-web = [
 # The transport-free vocabulary shared with every TinyChannels host. The
 # provider stack below is the implementation of that contract; a host that
 # only names channel types depends on the bus crate alone.
-tinychannels-bus = { version = "0.1.5", path = "crates/tinychannels-bus" }
-tinychannels-runtime = { version = "0.1.2", path = "crates/tinychannels-runtime" }
+# Pure path, no version requirement: neither crate is published, so a
+# version here would only ever be used by a `cargo publish` that cannot
+# happen, while still needing to be bumped in lockstep by every release.
+tinychannels-bus = { path = "crates/tinychannels-bus" }
+tinychannels-runtime = { path = "crates/tinychannels-runtime" }
 anyhow = "1"
 async-trait = "0.1"
 base64 = "0.23"
