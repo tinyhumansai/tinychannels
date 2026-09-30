@@ -210,7 +210,7 @@ fn linq_signature_verification_valid() {
     let now = chrono::Utc::now().timestamp().to_string();
 
     // Compute expected signature
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
     let message = format!("{now}.{body}");
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
@@ -242,7 +242,7 @@ fn linq_signature_verification_stale_timestamp() {
     let stale_ts = (chrono::Utc::now().timestamp() - 600).to_string();
 
     // Even with correct signature, stale timestamp should fail
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
     let message = format!("{stale_ts}.{body}");
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
@@ -261,7 +261,7 @@ fn linq_signature_verification_accepts_sha256_prefix() {
     let body = r#"{"event_type":"message.received"}"#;
     let now = chrono::Utc::now().timestamp().to_string();
 
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
     let message = format!("{now}.{body}");
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
@@ -277,7 +277,7 @@ fn linq_signature_verification_accepts_uppercase_hex() {
     let body = r#"{"event_type":"message.received"}"#;
     let now = chrono::Utc::now().timestamp().to_string();
 
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
     let message = format!("{now}.{body}");
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();

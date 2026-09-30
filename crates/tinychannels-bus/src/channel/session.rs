@@ -118,9 +118,50 @@ pub fn conversation_history_key_candidates(msg: &ChannelMessage) -> LegacySessio
     }
 }
 
+/// Derive a stable host-local thread key from inbound channel facts.
+pub fn derive_inbound_thread_id(
+    channel: &str,
+    sender: Option<&str>,
+    reply_target: Option<&str>,
+    thread_ts: Option<&str>,
+) -> String {
+    let mut key = format!("channel:{channel}");
+    if let Some(sender) = sender.and_then(nonempty) {
+        key.push('/');
+        key.push_str(sender);
+    }
+    if let Some(reply_target) = reply_target.and_then(nonempty) {
+        key.push('/');
+        key.push_str(reply_target);
+    }
+    let provider = channel.split(':').next().unwrap_or("");
+    if !matches!(provider, "telegram" | "tg")
+        && let Some(thread_ts) = thread_ts.and_then(nonempty)
+    {
+        key.push_str("#thread:");
+        key.push_str(thread_ts);
+    }
+    key
+}
+
+/// Derive a stable client identifier for an inbound channel sender.
+pub fn derive_inbound_client_id(channel: &str, sender: Option<&str>) -> String {
+    let channel = channel.trim();
+    match sender.map(str::trim).filter(|sender| !sender.is_empty()) {
+        Some(sender) if !channel.is_empty() => format!("inbound:{channel}:{sender}"),
+        Some(sender) => format!("inbound:{sender}"),
+        None => "inbound".to_string(),
+    }
+}
+
 fn normalize_namespace(namespace: &str) -> &str {
     match namespace.trim() {
         "" | "default" => "main",
         value => value,
     }
+}
+
+fn nonempty(value: &str) -> Option<&str> {
+    let value = value.trim();
+    (!value.is_empty()).then_some(value)
 }

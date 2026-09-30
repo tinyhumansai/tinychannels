@@ -1,47 +1,9 @@
-//! Runtime helper functions that are independent of OpenHuman application state.
+//! Runtime mechanics re-exported from the lightweight runtime crate.
 
-use crate::context::{
-    CHANNEL_MAX_IN_FLIGHT_MESSAGES, CHANNEL_MIN_IN_FLIGHT_MESSAGES, CHANNEL_PARALLELISM_PER_CHANNEL,
+pub use tinychannels_runtime::{
+    ChannelHealthState, ChannelSession, ListenerObserver, MAX_JITTER_MS, NoopListenerObserver,
+    RuntimeChannelMessage, check_channels_health, classify_health_result,
+    compute_max_in_flight_messages, jitter_millis, log_worker_join_result, run_dispatch_loop,
+    run_in_session, select_acknowledgment_reaction, spawn_scoped_typing_task,
+    spawn_supervised_listener,
 };
-
-pub fn compute_max_in_flight_messages(channel_count: usize) -> usize {
-    channel_count
-        .saturating_mul(CHANNEL_PARALLELISM_PER_CHANNEL)
-        .clamp(
-            CHANNEL_MIN_IN_FLIGHT_MESSAGES,
-            CHANNEL_MAX_IN_FLIGHT_MESSAGES,
-        )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn compute_max_in_flight_messages_zero_channels() {
-        assert_eq!(
-            compute_max_in_flight_messages(0),
-            CHANNEL_MIN_IN_FLIGHT_MESSAGES
-        );
-    }
-
-    #[test]
-    fn compute_max_in_flight_messages_one_channel() {
-        let result = compute_max_in_flight_messages(1);
-        assert!(result >= CHANNEL_MIN_IN_FLIGHT_MESSAGES);
-        assert!(result <= CHANNEL_MAX_IN_FLIGHT_MESSAGES);
-    }
-
-    #[test]
-    fn compute_max_in_flight_messages_many_channels() {
-        assert_eq!(
-            compute_max_in_flight_messages(100),
-            CHANNEL_MAX_IN_FLIGHT_MESSAGES
-        );
-    }
-
-    #[test]
-    fn compute_max_in_flight_messages_clamps_to_max() {
-        assert!(compute_max_in_flight_messages(usize::MAX) <= CHANNEL_MAX_IN_FLIGHT_MESSAGES);
-    }
-}

@@ -48,6 +48,7 @@
 //! the `tinychannels` crate.
 
 pub mod adapters;
+pub mod capabilities;
 pub mod channel;
 pub mod config;
 pub mod context;
@@ -60,11 +61,13 @@ pub mod text;
 pub mod traits;
 pub mod version;
 
+pub use capabilities::{ChannelCapabilities, capabilities_for, provider_id};
 pub use channel::{
     ChannelInboundEnvelope, ChannelOutboundIntent, DeliveryDurability, OutboundPayload,
-    build_session_key_for_inbound_envelope, inbound_envelope_from_legacy_message,
-    legacy_message_from_inbound_envelope, legacy_message_value_from_outbound_intent,
-    outbound_intent_from_legacy_message, outbound_intent_from_send_message,
+    build_session_key_for_inbound_envelope, derive_inbound_client_id, derive_inbound_thread_id,
+    inbound_envelope_from_legacy_message, legacy_message_from_inbound_envelope,
+    legacy_message_value_from_outbound_intent, outbound_intent_from_legacy_message,
+    outbound_intent_from_send_message,
 };
 pub use config::ChannelsConfig;
 pub use controllers::{ChannelAuthMode, ChannelDefinition};

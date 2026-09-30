@@ -4,7 +4,8 @@ version.workspace = true
 edition = "2024"
 # Not published to a package registry. Every consumer takes this repository as
 # a git submodule and a path dependency, and the loadable module is delivered as
-# a signed release artifact rather than a crate. `publish = false` makes that a
+# a release artifact pinned by its SHA-256 digest rather than a crate.
+# `publish = false` makes that a
 # property of the manifest instead of a convention someone has to remember, so
 # an accidental `cargo publish` fails locally rather than claiming a name on
 # crates.io that cannot be taken back.
@@ -15,6 +16,11 @@ repository = "https://github.com/tinyhumansai/tinychannels"
 readme = "README.md"
 keywords = ["messaging", "channels", "tinybus", "openhuman"]
 categories = ["data-structures", "api-bindings"]
+# Consumers depend on this crate via GitHub (git dependency / vendored
+# submodule), not crates.io, so there is nothing to publish. This is the
+# contract crate the root `tinychannels` crate above pins by version; keeping
+# both `publish = false` keeps the story consistent end to end.
+publish = false
 
 [dependencies]
 # Every payload that crosses the boundary is a typed Serde value.
@@ -30,11 +36,9 @@ thiserror = "2"
 async-trait = "0.1"
 # Session-key derivation and relay HMAC signing. Both are rules both sides must
 # agree on exactly, so they belong to the contract rather than to either host.
-sha2 = "0.10"
-hmac = "0.12"
+sha2 = "0.11"
+hmac = "0.13"
 base64 = "0.22"
-# Timestamps on envelopes and relay tokens.
-chrono = { version = "0.4", features = ["serde"] }
 # The pairing-token store is a small in-memory set behind a lock.
 parking_lot = "0.12"
 # Pairing codes and message ids.
@@ -59,5 +63,4 @@ serde_json = "1"
 # Keep this split — widening the normal dependency to satisfy a test would put a
 # scheduler into every host that only decodes payloads.
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
-toml = "0.9"
-tempfile = "3"
+toml = "1"

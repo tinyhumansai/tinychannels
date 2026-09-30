@@ -38,7 +38,7 @@ pub use receipt::{
 };
 pub use session::{
     LegacySessionKeys, SessionKeyPolicy, build_session_key, build_session_key_for_inbound_envelope,
-    conversation_history_key_candidates,
+    conversation_history_key_candidates, derive_inbound_client_id, derive_inbound_thread_id,
 };
 pub use types::{
     ChannelDescriptor, ChannelRef, ConversationKind, ConversationRef, SecretRef, SenderRef,

@@ -33,8 +33,8 @@ pub(super) fn shorten_account_id(uid: &str) -> String {
         return uid.to_string();
     }
     let prefix: String = uid.chars().take(8).collect();
-    let digest = Sha256::digest(uid.as_bytes());
-    format!("{prefix}_{:.16x}", digest)
+    let digest = hex::encode(Sha256::digest(uid.as_bytes()));
+    format!("{prefix}_{}", &digest[..16])
 }
 
 /// Shorten a yuanbao `reply_target`, preserving the `g:<group_code>` shape

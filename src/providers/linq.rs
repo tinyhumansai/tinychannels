@@ -376,7 +376,7 @@ impl Channel for LinqChannel {
 /// The signature is sent in `X-Webhook-Signature` (hex-encoded) and the
 /// timestamp in `X-Webhook-Timestamp`. Reject timestamps older than 300s.
 pub fn verify_linq_signature(secret: &str, body: &str, timestamp: &str, signature: &str) -> bool {
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     use sha2::Sha256;
 
     // Reject stale timestamps (>300s old)

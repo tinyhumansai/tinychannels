@@ -267,12 +267,8 @@ impl Channel for WhatsAppWebChannel {
             ..Default::default()
         };
 
-        let message_id = client.send_message(to, outgoing).await?;
-        tracing::debug!(
-            "WhatsApp Web: sent message to {} (id: {})",
-            message.recipient,
-            message_id
-        );
+        client.send_message(to, outgoing).await?;
+        tracing::debug!("WhatsApp Web: sent message to {}", message.recipient);
         Ok(())
     }
 
@@ -326,7 +322,7 @@ impl Channel for WhatsAppWebChannel {
                 let connected = Arc::clone(&connected_for_handler);
                 let allowed_groups = Arc::clone(&allowed_groups_for_handler);
                 async move {
-                    match event {
+                    match event.as_ref() {
                         Event::Message(msg, info) => {
                             // Self-echoes (messages this user sent from another
                             // linked device) are mirrored to all devices via
@@ -350,7 +346,7 @@ impl Channel for WhatsAppWebChannel {
                             // allowed-list check + downstream subscriber.
                             let sender_user = info.source.sender.user.clone();
                             let normalized = if sender_user.starts_with('+') {
-                                sender_user.clone()
+                                sender_user.to_string()
                             } else {
                                 format!("+{sender_user}")
                             };

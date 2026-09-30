@@ -255,7 +255,7 @@ pub fn generate_token() -> String {
 
 /// SHA-256 hash a bearer token for storage. Returns lowercase hex.
 pub fn hash_token(token: &str) -> String {
-    format!("{:x}", Sha256::digest(token.as_bytes()))
+    hex::encode(Sha256::digest(token.as_bytes()))
 }
 
 /// Check if a stored value looks like a SHA-256 hash (64 hex chars)
@@ -286,3 +286,6 @@ pub fn constant_time_eq(a: &str, b: &str) -> bool {
     }
     (len_diff == 0) & (byte_diff == 0)
 }
+
+#[cfg(test)]
+mod test;
