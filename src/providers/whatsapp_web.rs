@@ -324,87 +324,87 @@ impl Channel for WhatsAppWebChannel {
                     match event.as_ref() {
                         Event::Messages(batch) => {
                             for inbound in batch.iter() {
-                            let msg = &inbound.message;
-                            let info = &inbound.info;
-                            // Self-echoes (messages this user sent from another
-                            // linked device) are mirrored to all devices via
-                            // the WhatsApp protocol. Drop them so the agent
-                            // doesn't react to its own outgoing messages.
-                            if info.source.is_from_me {
-                                return;
-                            }
-
-                            let text = Self::extract_message_text(
-                                msg.conversation.as_deref(),
-                                msg.extended_text_message
-                                    .as_ref()
-                                    .and_then(|e| e.text.as_deref()),
-                            );
-
-                            // Sender JID can use either the legacy `s.whatsapp.net`
-                            // server (phone-number addressing) or the newer `lid`
-                            // server (privacy-preserving identifier). Render the
-                            // user portion in E.164 with a leading `+` for the
-                            // allowed-list check + downstream subscriber.
-                            let sender_user = info.source.sender.user.clone();
-                            let normalized = if sender_user.starts_with('+') {
-                                sender_user.to_string()
-                            } else {
-                                format!("+{sender_user}")
-                            };
-                            let chat = info.source.chat.to_string();
-                            let reply_target = Self::compute_reply_target(&chat, &normalized);
-
-                            // Routine logs only carry coarse metadata — no raw
-                            // sender identifier, no message body — so PII does
-                            // not leak into application logs at any level.
-                            // For DM chats `chat` is `<phone>@s.whatsapp.net`,
-                            // which still carries the participant's phone
-                            // number. Redact the user part so the routine
-                            // log keeps only the server suffix (DM vs group)
-                            // and a coarse identifier tail.
-                            tracing::info!(
-                                "📨 WhatsApp inbound: chat={} sender={} text_len={}",
-                                Self::redact_recipient(&chat),
-                                Self::redact_phone(&normalized),
-                                text.len()
-                            );
-
-                            if allowed_numbers.is_empty()
-                                || allowed_numbers.iter().any(|n| n == "*" || n == &normalized)
-                            {
-                                // Record group provenance: this group has had at
-                                // least one allow-listed participant message in,
-                                // so subsequent outbound replies into the same
-                                // group are legitimate. Outbound to groups
-                                // without provenance is rejected by
-                                // `should_allow_outbound`.
-                                if Self::is_group_jid(&chat) {
-                                    allowed_groups.lock().insert(chat.clone());
+                                let msg = &inbound.message;
+                                let info = &inbound.info;
+                                // Self-echoes (messages this user sent from another
+                                // linked device) are mirrored to all devices via
+                                // the WhatsApp protocol. Drop them so the agent
+                                // doesn't react to its own outgoing messages.
+                                if info.source.is_from_me {
+                                    continue;
                                 }
-                                if let Err(e) = tx_inner
-                                    .send(ChannelMessage {
-                                        id: uuid::Uuid::new_v4().to_string(),
-                                        channel: "whatsapp".to_string(),
-                                        sender: normalized.clone(),
-                                        reply_target,
-                                        content: text,
-                                        timestamp: chrono::Utc::now().timestamp_millis() as u64,
-                                        thread_ts: None,
-                                    })
-                                    .await
+
+                                let text = Self::extract_message_text(
+                                    msg.conversation.as_deref(),
+                                    msg.extended_text_message
+                                        .as_ref()
+                                        .and_then(|e| e.text.as_deref()),
+                                );
+
+                                // Sender JID can use either the legacy `s.whatsapp.net`
+                                // server (phone-number addressing) or the newer `lid`
+                                // server (privacy-preserving identifier). Render the
+                                // user portion in E.164 with a leading `+` for the
+                                // allowed-list check + downstream subscriber.
+                                let sender_user = info.source.sender.user.clone();
+                                let normalized = if sender_user.starts_with('+') {
+                                    sender_user.to_string()
+                                } else {
+                                    format!("+{sender_user}")
+                                };
+                                let chat = info.source.chat.to_string();
+                                let reply_target = Self::compute_reply_target(&chat, &normalized);
+
+                                // Routine logs only carry coarse metadata — no raw
+                                // sender identifier, no message body — so PII does
+                                // not leak into application logs at any level.
+                                // For DM chats `chat` is `<phone>@s.whatsapp.net`,
+                                // which still carries the participant's phone
+                                // number. Redact the user part so the routine
+                                // log keeps only the server suffix (DM vs group)
+                                // and a coarse identifier tail.
+                                tracing::info!(
+                                    "📨 WhatsApp inbound: chat={} sender={} text_len={}",
+                                    Self::redact_recipient(&chat),
+                                    Self::redact_phone(&normalized),
+                                    text.len()
+                                );
+
+                                if allowed_numbers.is_empty()
+                                    || allowed_numbers.iter().any(|n| n == "*" || n == &normalized)
                                 {
-                                    tracing::error!(
-                                        "Failed to forward WhatsApp message to channel: {}",
-                                        e
+                                    // Record group provenance: this group has had at
+                                    // least one allow-listed participant message in,
+                                    // so subsequent outbound replies into the same
+                                    // group are legitimate. Outbound to groups
+                                    // without provenance is rejected by
+                                    // `should_allow_outbound`.
+                                    if Self::is_group_jid(&chat) {
+                                        allowed_groups.lock().insert(chat.clone());
+                                    }
+                                    if let Err(e) = tx_inner
+                                        .send(ChannelMessage {
+                                            id: uuid::Uuid::new_v4().to_string(),
+                                            channel: "whatsapp".to_string(),
+                                            sender: normalized.clone(),
+                                            reply_target,
+                                            content: text,
+                                            timestamp: chrono::Utc::now().timestamp_millis() as u64,
+                                            thread_ts: None,
+                                        })
+                                        .await
+                                    {
+                                        tracing::error!(
+                                            "Failed to forward WhatsApp message to channel: {}",
+                                            e
+                                        );
+                                    }
+                                } else {
+                                    tracing::warn!(
+                                        "WhatsApp Web: message from {} not in allowed list",
+                                        Self::redact_phone(&normalized)
                                     );
                                 }
-                            } else {
-                                tracing::warn!(
-                                    "WhatsApp Web: message from {} not in allowed list",
-                                    Self::redact_phone(&normalized)
-                                );
-                            }
                             }
                         }
                         Event::Connected(_) => {
