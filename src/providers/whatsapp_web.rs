@@ -334,7 +334,7 @@ impl Channel for WhatsAppWebChannel {
                             for inbound in Self::non_self_echoes(
                                 &batch.messages,
                                 |inbound: &wacore::types::events::InboundMessage| {
-                                inbound.info.source.is_from_me
+                                    inbound.info.source.is_from_me
                                 },
                             ) {
                                 let msg = &inbound.message;
