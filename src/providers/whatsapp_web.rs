@@ -337,9 +337,7 @@ impl Channel for WhatsAppWebChannel {
 
                                 let text = Self::extract_message_text(
                                     msg.conversation.as_deref(),
-                                    msg.extended_text_message
-                                        .as_ref()
-                                        .and_then(|e| e.text.as_deref()),
+                                    msg.extended_text_message.text.text.as_deref(),
                                 );
 
                                 // Sender JID can use either the legacy `s.whatsapp.net`
