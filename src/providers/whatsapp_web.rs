@@ -99,10 +99,10 @@ pub struct WhatsAppWebChannel {
 
 #[cfg(feature = "whatsapp-web")]
 impl WhatsAppWebChannel {
-    fn non_self_echoes<'a, T>(
-        messages: &'a [T],
+    fn non_self_echoes<T>(
+        messages: &[T],
         is_from_me: impl Fn(&T) -> bool,
-    ) -> impl Iterator<Item = &'a T> {
+    ) -> impl Iterator<Item = &T> {
         messages.iter().filter(move |message| !is_from_me(message))
     }
 
