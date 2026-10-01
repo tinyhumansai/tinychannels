@@ -26,8 +26,8 @@ Public API exports live in `src/lib.rs` and
 Prefer small, focused modules that do one thing clearly. New feature areas
 should live in module directories instead of accumulating broad multi-purpose
 files. Within each module directory, keep shared type definitions in a
-dedicated `types.rs` file and keep module-local unit tests in a dedicated
-`test.rs` file. The module root should wire the pieces together and expose the
+dedicated `types.rs` file and keep module-local unit tests in a sibling
+`<module>_tests.rs` file. The module root should wire the pieces together and expose the
 smallest useful API.
 
 Integration tests belong in `tests/` once behavior exists. Design notes and
@@ -123,3 +123,28 @@ examples or docs when public APIs, architecture, or expected usage changes.
 Always make small, focused commits. Each commit should cover one logical change,
 build independently, and avoid mixing formatting, refactors, and behavior
 changes unless they are inseparable.
+
+## Tests live in `*_tests.rs` files
+
+- Unit tests are never inline. Do not write a `#[cfg(test)] mod tests { ... }`
+  block in a source file. Put the tests in a sibling `<module>_tests.rs`
+  (`mod_tests.rs` beside a `mod.rs`, `lib_tests.rs` beside `lib.rs`) and declare
+  it at the bottom of the module:
+
+  ```rust
+  #[cfg(test)]
+  #[path = "foo_tests.rs"]
+  mod tests;
+  ```
+
+- The test file starts with `use super::*;` and carries no `#[cfg(test)]` of its
+  own. It is still a child module, so it reaches private items exactly as an
+  inline module did.
+- Name test files `<module>_tests.rs`; a second group for the same module is
+  `<module>_<topic>_tests.rs`. Never `test.rs`, `tests.rs` or `<module>_test.rs`.
+- Integration tests stay in the crate's `tests/` directory.
+- OpenHuman's `scripts/externalize-inline-tests.mjs <repo-root> --write` moves
+  inline test modules out mechanically; without `--write` it only reports.
+- Existing `test.rs` and `<module>_test.rs` files predate this rule. Rename each
+  to `<module>_tests.rs` (keep its `mod` name, add the `#[path]` attribute) the
+  next time you touch it.

@@ -571,28 +571,8 @@ impl Channel for EmailChannel {
 mod tests;
 
 #[cfg(all(feature = "email", any(test, debug_assertions)))]
-pub mod test_support {
-    //! Debug-build helpers for raw integration tests. They exercise the email
-    //! parser without opening IMAP or SMTP sockets.
-
-    use super::*;
-
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub struct ParsedEmailFixture {
-        pub sender: String,
-        pub text: String,
-        pub subject: Option<String>,
-    }
-
-    pub fn parse_email_fixture(raw: &[u8]) -> Option<ParsedEmailFixture> {
-        let parsed = MessageParser::default().parse(raw)?;
-        Some(ParsedEmailFixture {
-            sender: EmailChannel::extract_sender(&parsed),
-            text: EmailChannel::extract_text(&parsed),
-            subject: parsed.subject().map(str::to_string),
-        })
-    }
-}
+#[path = "email_channel_test_support_tests.rs"]
+pub mod test_support;
 
 /// The send-only surface, exercised in a build that has no IMAP stack.
 ///
@@ -602,50 +582,5 @@ pub mod test_support {
 /// and had to be gated along with it. `voice` in OpenHuman reaches for exactly
 /// these three items and nothing else, so this is the contract to keep.
 #[cfg(all(test, feature = "email-send", not(feature = "email")))]
-mod send_only_tests {
-    use super::EmailChannel;
-    use crate::config::EmailConfig;
-
-    fn config() -> EmailConfig {
-        EmailConfig {
-            from_address: "bot@example.com".to_string(),
-            username: "bot@example.com".to_string(),
-            password: "secret".to_string(),
-            smtp_host: "smtp.example.com".to_string(),
-            smtp_port: 587,
-            smtp_tls: true,
-            ..Default::default()
-        }
-    }
-
-    /// `EmailChannel::new` + `build_plain_message` + `send_message` are what a
-    /// send-only host links. Building a message must not need a mailbox.
-    #[test]
-    fn a_plain_message_can_be_built_without_the_receive_half() {
-        let channel = EmailChannel::new(config());
-        let message = channel
-            .build_plain_message("someone@example.com", "Subject", "Body")
-            .expect("a well-formed plain message should build");
-        let raw = String::from_utf8(message.formatted()).expect("message should be UTF-8");
-        assert!(raw.contains("someone@example.com"));
-        assert!(raw.contains("Subject"));
-    }
-
-    /// The attachment builder is the one OpenHuman's podcast delivery uses.
-    #[test]
-    fn an_attachment_message_can_be_built_without_the_receive_half() {
-        let channel = EmailChannel::new(config());
-        let message = channel
-            .build_message_with_attachment(
-                "someone@example.com",
-                "Your podcast",
-                "Attached.",
-                "podcast.mp3",
-                "audio/mpeg".parse().expect("a valid content type"),
-                vec![0u8, 1, 2, 3],
-            )
-            .expect("a well-formed attachment message should build");
-        let raw = String::from_utf8(message.formatted()).expect("message should be UTF-8");
-        assert!(raw.contains("podcast.mp3"));
-    }
-}
+#[path = "email_channel_send_only_tests.rs"]
+mod send_only_tests;
