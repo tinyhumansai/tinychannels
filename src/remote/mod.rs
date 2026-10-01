@@ -329,4 +329,5 @@ async fn new_session(
 }
 
 #[cfg(test)]
+#[path = "mod_tests.rs"]
 mod test;

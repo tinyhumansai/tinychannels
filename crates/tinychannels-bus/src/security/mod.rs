@@ -288,4 +288,5 @@ pub fn constant_time_eq(a: &str, b: &str) -> bool {
 }
 
 #[cfg(test)]
+#[path = "mod_tests.rs"]
 mod test;

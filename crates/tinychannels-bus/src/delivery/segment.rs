@@ -240,5 +240,5 @@ pub fn segment_delay(segment: &str) -> u64 {
 }
 
 #[cfg(test)]
-#[path = "segment_test.rs"]
+#[path = "segment_tests.rs"]
 mod tests;

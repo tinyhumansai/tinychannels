@@ -125,4 +125,5 @@ pub fn channel_supports_progressive_ui(channel: &str) -> bool {
 }
 
 #[cfg(test)]
+#[path = "mod_tests.rs"]
 mod test;
