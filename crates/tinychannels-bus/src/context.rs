@@ -148,20 +148,59 @@ pub fn should_skip_memory_context_entry(key: &str, content: &str) -> bool {
     content.chars().count() > MEMORY_CONTEXT_MAX_CHARS
 }
 
+/// Whether an error message says the request exceeded the model's context
+/// window (the prompt or conversation is too long for the model).
+///
+/// A deterministic usage condition, not a transient fault: retrying the same
+/// oversized request cannot help. The match is status-agnostic (providers
+/// disagree on the HTTP code) and anchored in two tiers so a retryable error is
+/// never marked permanent:
+///
+/// - **Length/context phrases** only describe request-size overflow and match
+///   on their own, including the LM Studio / llama.cpp un-evictable-prefix body
+///   (`n_keep: N >= n_ctx: M`, which needs both tokens).
+/// - **Token-count phrases** ("too many tokens", "token limit exceeded") collide
+///   with per-minute token *rate* limits, which are transient. They count as
+///   overflow only when no rate-limit marker is present.
 pub fn is_context_window_overflow_message(err: &str) -> bool {
-    let lower = err.to_lowercase();
-    [
+    let lower = err.to_ascii_lowercase();
+
+    const CONTEXT_HINTS: &[&str] = &[
         "exceeds the context window",
         "context window of this model",
         "maximum context length",
         "context length exceeded",
-        "too many tokens",
-        "token limit exceeded",
+        "context size has been exceeded",
         "prompt is too long",
         "input is too long",
-    ]
-    .iter()
-    .any(|hint| lower.contains(hint))
+        "greater than the context length",
+    ];
+    if CONTEXT_HINTS.iter().any(|hint| lower.contains(hint)) {
+        return true;
+    }
+
+    if lower.contains("n_keep") && lower.contains("n_ctx") {
+        return true;
+    }
+
+    const TOKEN_HINTS: &[&str] = &["too many tokens", "token limit exceeded"];
+    if TOKEN_HINTS.iter().any(|hint| lower.contains(hint)) {
+        const RATE_LIMIT_MARKERS: &[&str] = &[
+            "per minute",
+            "per min",
+            "rate limit",
+            "rate_limit",
+            "tpm",
+            "requests per",
+            "retry after",
+            "try again in",
+        ];
+        return !RATE_LIMIT_MARKERS
+            .iter()
+            .any(|marker| lower.contains(marker));
+    }
+
+    false
 }
 
 pub async fn build_memory_context(
@@ -294,6 +333,51 @@ mod tests {
             "maximum context length exceeded"
         ));
         assert!(!is_context_window_overflow_message("network unavailable"));
+    }
+
+    #[test]
+    fn context_overflow_matches_established_phrasings() {
+        for body in [
+            "This model's maximum context length is 8192 tokens",
+            "request exceeds the context window of this model",
+            "context length exceeded",
+            "{\"error\":{\"code\":500,\"message\":\"Context size has been exceeded.\"}}",
+            "too many tokens in the prompt",
+            "token limit exceeded",
+            "prompt is too long for the selected model",
+            "input is too long",
+        ] {
+            assert!(is_context_window_overflow_message(body), "{body}");
+        }
+    }
+
+    #[test]
+    fn context_overflow_matches_lmstudio_n_keep_body() {
+        assert!(is_context_window_overflow_message(
+            "lmstudio API error (400): The number of tokens to keep from the initial prompt is greater than the context length (n_keep: 10978 >= n_ctx: 8192)."
+        ));
+        assert!(is_context_window_overflow_message(
+            "prompt is greater than the context length of the loaded model"
+        ));
+        assert!(is_context_window_overflow_message(
+            "n_keep: 9000 >= n_ctx: 4096"
+        ));
+    }
+
+    #[test]
+    fn context_overflow_ignores_unrelated_and_rate_limit_bodies() {
+        for body in [
+            "network unavailable",
+            "rate limit exceeded, retry after 30s",
+            "tool call exceeded the allowed budget",
+            // Only one of the paired n_keep/n_ctx tokens.
+            "loaded model with n_ctx: 8192 and 32 layers",
+            "Rate limit reached: too many tokens per minute (TPM) for this org",
+            "rate_limit_exceeded: token limit exceeded, retry after 12s",
+            "You have hit too many tokens per min; try again in 30s",
+        ] {
+            assert!(!is_context_window_overflow_message(body), "{body}");
+        }
     }
 
     #[tokio::test]
