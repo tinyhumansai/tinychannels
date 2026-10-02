@@ -2314,6 +2314,17 @@ dependencies = [
 
 [[package]]
 name = "sha2"
+version = "0.10.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.2.17",
+ "digest 0.10.7",
+]
+
+[[package]]
+name = "sha2"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4"
@@ -2547,6 +2558,7 @@ dependencies = [
  "flate2",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tar",
  "tempfile",
  "thiserror 2.0.20",
@@ -2608,7 +2620,7 @@ dependencies = [
  "serde-big-array",
  "serde_json",
  "sha1 0.11.0",
- "sha2",
+ "sha2 0.11.0",
  "tempfile",
  "thiserror 2.0.20",
  "tinychannels-bus",
@@ -2643,7 +2655,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "sha2",
+ "sha2 0.11.0",
  "thiserror 2.0.20",
  "tokio",
  "toml",
@@ -3073,7 +3085,7 @@ dependencies = [
  "serde-big-array",
  "serde_json",
  "sha1 0.11.0",
- "sha2",
+ "sha2 0.11.0",
  "smallvec",
  "smoothutf8",
  "subtle",
@@ -3102,7 +3114,7 @@ dependencies = [
  "serde",
  "serde-big-array",
  "serde_json",
- "sha2",
+ "sha2 0.11.0",
  "thiserror 2.0.20",
  "wacore-binary",
  "wacore-libsignal",
@@ -3162,7 +3174,7 @@ dependencies = [
  "rand 0.10.2",
  "serde",
  "sha1 0.11.0",
- "sha2",
+ "sha2 0.11.0",
  "subtle",
  "thiserror 2.0.20",
  "wacore-derive",
@@ -3182,7 +3194,7 @@ dependencies = [
  "hkdf",
  "log",
  "rand 0.10.2",
- "sha2",
+ "sha2 0.11.0",
  "thiserror 2.0.20",
  "wacore-binary",
  "wacore-libsignal",
@@ -3210,7 +3222,7 @@ dependencies = [
  "bytes",
  "heck",
  "serde",
- "sha2",
+ "sha2 0.11.0",
 ]
 
 [[package]]
