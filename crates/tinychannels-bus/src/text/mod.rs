@@ -399,5 +399,5 @@ fn append_indicators(chunks: Vec<String>) -> Vec<String> {
 }
 
 #[cfg(test)]
-#[path = "test.rs"]
+#[path = "mod_tests.rs"]
 mod tests;
