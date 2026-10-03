@@ -533,3 +533,93 @@ fn strip_html_collapses_whitespace_runs() {
         "hello world"
     );
 }
+
+fn smtp_config(port: u16, tls: bool) -> EmailConfig {
+    EmailConfig {
+        imap_host: "imap.example.com".to_string(),
+        imap_port: 993,
+        smtp_host: "127.0.0.1".to_string(),
+        smtp_port: port,
+        smtp_tls: tls,
+        username: String::new(),
+        password: "pw".to_string(),
+        from_address: "bot@example.com".to_string(),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn the_config_maps_onto_per_call_mail_credentials() {
+    use crate::providers::mail::SmtpSecurity;
+
+    let mut config = smtp_config(465, true);
+    config.username = "bot".to_string();
+    let channel = EmailChannel::new(config);
+    let smtp = channel.smtp_credentials();
+    assert_eq!(smtp.security, SmtpSecurity::Ssl, "smtp_tls is implicit TLS");
+    assert_eq!((smtp.host.as_str(), smtp.port), ("127.0.0.1", 465));
+    assert_eq!(smtp.username, "bot");
+    assert_eq!(smtp.password.expose(), "pw");
+    assert_eq!(smtp.from_email, "bot@example.com");
+
+    let imap = channel.imap_credentials();
+    assert_eq!((imap.host.as_str(), imap.port), ("imap.example.com", 993));
+    assert_eq!(imap.password.expose(), "pw");
+
+    let plain = EmailChannel::new(smtp_config(25, false)).smtp_credentials();
+    assert_eq!(plain.security, SmtpSecurity::None);
+}
+
+/// `Channel::send` runs inside an async runtime, so it must not drive a
+/// blocking SMTP transport there. It goes through the async sender instead.
+#[tokio::test(flavor = "current_thread")]
+async fn channel_send_delivers_over_the_async_transport() {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+    // A current-thread runtime: a blocking send here would deadlock against
+    // the fake server below, which runs on the same thread.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let server = tokio::spawn(async move {
+        let (sock, _) = listener.accept().await.unwrap();
+        let (read, mut write) = sock.into_split();
+        let mut lines = BufReader::new(read).lines();
+        let mut seen = Vec::new();
+        write.write_all(b"220 fake\r\n").await.unwrap();
+        let mut in_data = false;
+        while let Ok(Some(line)) = lines.next_line().await {
+            seen.push(line.clone());
+            let reply: &[u8] = match (in_data, line.as_str()) {
+                (true, ".") => {
+                    in_data = false;
+                    b"250 queued\r\n"
+                }
+                (true, _) => continue,
+                (false, l) if l.starts_with("DATA") => {
+                    in_data = true;
+                    b"354 go\r\n"
+                }
+                (false, l) if l.starts_with("QUIT") => {
+                    let _ = write.write_all(b"221 bye\r\n").await;
+                    break;
+                }
+                _ => b"250 ok\r\n",
+            };
+            write.write_all(reply).await.unwrap();
+        }
+        seen.join("\n")
+    });
+
+    let channel = EmailChannel::new(smtp_config(port, false));
+    let message = SendMessage::new("Body text", "to@example.com").in_thread(None);
+    let message = SendMessage {
+        subject: Some("Greetings".to_string()),
+        ..message
+    };
+    channel.send(&message).await.unwrap();
+
+    let transcript = server.await.unwrap();
+    assert!(transcript.contains("RCPT TO:<to@example.com>"), "{transcript}");
+    assert!(transcript.contains("Subject: Greetings"), "{transcript}");
+    assert!(transcript.contains("Body text"), "{transcript}");
+}
