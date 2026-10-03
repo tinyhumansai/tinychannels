@@ -448,6 +448,16 @@ impl EmailChannel {
         Ok(transport)
     }
 
+    /// Stub.
+    pub fn smtp_credentials(&self) -> crate::providers::mail::SmtpCredentials {
+        crate::providers::mail::SmtpCredentials { host: String::new(), port: 0, security: Default::default(), username: String::new(), password: Default::default(), from_name: String::new(), from_email: String::new() }
+    }
+
+    /// Stub.
+    pub fn imap_credentials(&self) -> crate::providers::mail::ImapCredentials {
+        crate::providers::mail::ImapCredentials { host: String::new(), port: 0, username: String::new(), password: Default::default() }
+    }
+
     pub fn send_message(&self, email: Message) -> Result<()> {
         let transport = self.create_smtp_transport()?;
         transport.send(&email)?;

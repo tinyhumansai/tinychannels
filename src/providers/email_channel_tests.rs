@@ -611,10 +611,9 @@ async fn channel_send_delivers_over_the_async_transport() {
     });
 
     let channel = EmailChannel::new(smtp_config(port, false));
-    let message = SendMessage::new("Body text", "to@example.com").in_thread(None);
     let message = SendMessage {
         subject: Some("Greetings".to_string()),
-        ..message
+        ..SendMessage::new("Body text", "to@example.com")
     };
     channel.send(&message).await.unwrap();
 
