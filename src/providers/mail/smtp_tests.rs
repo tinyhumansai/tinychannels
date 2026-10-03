@@ -93,9 +93,13 @@ fn email(to: &str) -> OutboundEmail {
 }
 
 fn auth_plain(session: &[String]) -> Option<String> {
-    let line = session.iter().find(|l| l.to_ascii_uppercase().starts_with("AUTH PLAIN"))?;
+    let line = session
+        .iter()
+        .find(|l| l.to_ascii_uppercase().starts_with("AUTH PLAIN"))?;
     let encoded = line.split_whitespace().nth(2)?;
-    let decoded = base64::engine::general_purpose::STANDARD.decode(encoded).ok()?;
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .ok()?;
     Some(String::from_utf8_lossy(&decoded).replace('\0', "|"))
 }
 

@@ -59,10 +59,7 @@ impl MailSender for LettreMailSender {
         let (transport, message) = prepare(creds, email)?;
         match tokio::time::timeout(self.timeout, transport.send(message)).await {
             Ok(Ok(_)) => {
-                tracing::debug!(
-                    from = creds.from_email(),
-                    "[mail][smtp] message accepted"
-                );
+                tracing::debug!(from = creds.from_email(), "[mail][smtp] message accepted");
                 Ok(())
             }
             Ok(Err(error)) => Err(MailError::Transport(format!("smtp send: {error}"))),

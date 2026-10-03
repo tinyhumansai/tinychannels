@@ -71,7 +71,10 @@ fn debug_still_identifies_the_credentials() {
 
 #[test]
 fn providers_parse_by_name_and_display_lowercase() {
-    assert_eq!(" SMTP ".parse::<MailProvider>().unwrap(), MailProvider::Smtp);
+    assert_eq!(
+        " SMTP ".parse::<MailProvider>().unwrap(),
+        MailProvider::Smtp
+    );
     assert_eq!(MailProvider::Smtp.to_string(), "smtp");
     let error = "ses".parse::<MailProvider>().unwrap_err();
     assert!(error.to_string().contains("ses"), "{error}");

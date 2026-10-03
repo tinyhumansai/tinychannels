@@ -98,11 +98,23 @@ async fn unseen_mail_is_fetched_by_uid_without_being_marked() {
     assert!(joined.contains("UID SEARCH UNSEEN"), "{joined}");
     // PEEK is the point: a plain BODY[] fetch would set \Seen, and a message
     // that then failed to file would never be fetched again.
-    assert!(joined.contains("UID FETCH 3,7 (UID BODY.PEEK[])"), "{joined}");
-    let fetch_at = commands.iter().position(|c| c.contains("UID FETCH")).unwrap();
-    let store_at = commands.iter().position(|c| c.contains("UID STORE")).unwrap();
+    assert!(
+        joined.contains("UID FETCH 3,7 (UID BODY.PEEK[])"),
+        "{joined}"
+    );
+    let fetch_at = commands
+        .iter()
+        .position(|c| c.contains("UID FETCH"))
+        .unwrap();
+    let store_at = commands
+        .iter()
+        .position(|c| c.contains("UID STORE"))
+        .unwrap();
     assert!(fetch_at < store_at, "nothing is marked during the fetch");
-    assert!(joined.contains("UID STORE 3,7 +FLAGS.SILENT (\\Seen)"), "{joined}");
+    assert!(
+        joined.contains("UID STORE 3,7 +FLAGS.SILENT (\\Seen)"),
+        "{joined}"
+    );
 }
 
 #[tokio::test]

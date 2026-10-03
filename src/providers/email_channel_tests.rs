@@ -618,7 +618,10 @@ async fn channel_send_delivers_over_the_async_transport() {
     channel.send(&message).await.unwrap();
 
     let transcript = server.await.unwrap();
-    assert!(transcript.contains("RCPT TO:<to@example.com>"), "{transcript}");
+    assert!(
+        transcript.contains("RCPT TO:<to@example.com>"),
+        "{transcript}"
+    );
     assert!(transcript.contains("Subject: Greetings"), "{transcript}");
     assert!(transcript.contains("Body text"), "{transcript}");
 }
