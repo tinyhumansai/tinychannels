@@ -57,6 +57,9 @@ use tracing::{debug, error, warn};
 use uuid::Uuid;
 
 pub use crate::config::EmailConfig;
+use crate::providers::mail::{ImapCredentials, MailSecret, SmtpCredentials, SmtpSecurity};
+#[cfg(feature = "email")]
+use crate::providers::mail::{LettreMailSender, MailCredentials, MailSender, OutboundEmail};
 #[cfg(feature = "email")]
 use crate::traits::{Channel, ChannelMessage, SendMessage};
 
@@ -448,6 +451,40 @@ impl EmailChannel {
         Ok(transport)
     }
 
+    /// This channel's SMTP account as per-call [`SmtpCredentials`], for the
+    /// async [`MailSender`](crate::providers::mail::MailSender) seam.
+    ///
+    /// `smtp_tls` maps to implicit TLS ([`SmtpSecurity::Ssl`]) and its absence to
+    /// a plaintext connection ([`SmtpSecurity::None`]) — the same two transports
+    /// the blocking [`Self::send_message`] path builds. `from_address` is used
+    /// as given, so a `Name <addr>` form keeps its display name.
+    pub fn smtp_credentials(&self) -> SmtpCredentials {
+        SmtpCredentials {
+            host: self.config.smtp_host.clone(),
+            port: self.config.smtp_port,
+            security: if self.config.smtp_tls {
+                SmtpSecurity::Ssl
+            } else {
+                SmtpSecurity::None
+            },
+            username: self.config.username.clone(),
+            password: MailSecret::new(self.config.password.clone()),
+            from_name: String::new(),
+            from_email: self.config.from_address.clone(),
+        }
+    }
+
+    /// This channel's IMAP login as per-call [`ImapCredentials`], for the
+    /// [`MailReceiver`](crate::providers::mail::MailReceiver) seam.
+    pub fn imap_credentials(&self) -> ImapCredentials {
+        ImapCredentials {
+            host: self.config.imap_host.clone(),
+            port: self.config.imap_port,
+            username: self.config.username.clone(),
+            password: MailSecret::new(self.config.password.clone()),
+        }
+    }
+
     pub fn send_message(&self, email: Message) -> Result<()> {
         let transport = self.create_smtp_transport()?;
         transport.send(&email)?;
@@ -532,8 +569,17 @@ impl Channel for EmailChannel {
             ("OpenHuman Message", message.content.as_str())
         };
 
-        let email = self.build_plain_message(message.recipient.as_str(), subject, body)?;
-        self.send_message(email)?;
+        // The async sender, not `send_message`: this runs on a runtime
+        // worker, and the blocking transport would stall it for the whole
+        // SMTP exchange.
+        let email = OutboundEmail {
+            to: message.recipient.clone(),
+            subject: subject.to_string(),
+            body: body.to_string(),
+        };
+        LettreMailSender::new()
+            .send(&MailCredentials::Smtp(self.smtp_credentials()), &email)
+            .await?;
         info!("Email sent to {}", message.recipient);
         Ok(())
     }
