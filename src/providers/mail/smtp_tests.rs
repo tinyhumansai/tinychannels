@@ -5,6 +5,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 
 use super::*;
+use crate::providers::mail::{MailSecret, SmtpCredentials};
 
 /// How the fake server answers `RCPT TO`.
 #[derive(Clone, Copy)]
