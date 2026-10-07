@@ -162,6 +162,13 @@ pub fn should_skip_memory_context_entry(key: &str, content: &str) -> bool {
 /// - **Token-count phrases** ("too many tokens", "token limit exceeded") collide
 ///   with per-minute token *rate* limits, which are transient. They count as
 ///   overflow only when no rate-limit marker is present.
+///
+/// This is a deliberate copy of `is_context_window_exceeded_message` in
+/// tinyinference's `crates/tinyinference-llm/src/failure.rs`, and its match
+/// list must track that function. It is duplicated rather than imported
+/// because this is the contract crate, which stays dependency-free and cannot
+/// take a dependency on the inference stack. When a provider phrasing is added
+/// there, add it here with the same test string.
 pub fn is_context_window_overflow_message(err: &str) -> bool {
     let lower = err.to_ascii_lowercase();
 
@@ -174,6 +181,9 @@ pub fn is_context_window_overflow_message(err: &str) -> bool {
         "prompt is too long",
         "input is too long",
         "greater than the context length",
+        // Alibaba / DashScope (Qwen): `"Range of input length should be
+        // [1, 98304]"` — the window is the range's upper bound.
+        "range of input length should be",
     ];
     if CONTEXT_HINTS.iter().any(|hint| lower.contains(hint)) {
         return true;
