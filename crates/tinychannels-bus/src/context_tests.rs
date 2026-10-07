@@ -106,6 +106,21 @@ fn context_overflow_matches_lmstudio_n_keep_body() {
 }
 
 #[test]
+fn context_overflow_matches_dashscope_input_length_range() {
+    let body = "Provider returned error: {\"error\":{\"code\":\"invalid_parameter_error\",\
+                \"message\":\"Range of input length should be [1, 98304]\"}}";
+    assert!(is_context_window_overflow_message(body));
+}
+
+#[test]
+fn context_overflow_ignores_other_dashscope_parameter_errors() {
+    // Same DashScope error envelope, but not the input-length range.
+    let body = "Provider returned error: {\"error\":{\"code\":\"invalid_parameter_error\",\
+                \"message\":\"Range of temperature should be [0, 2)\"}}";
+    assert!(!is_context_window_overflow_message(body));
+}
+
+#[test]
 fn context_overflow_ignores_unrelated_and_rate_limit_bodies() {
     for body in [
         "network unavailable",
