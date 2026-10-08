@@ -224,6 +224,46 @@ impl WhatsAppWebChannel {
         format!("+{normalized_user}")
     }
 
+    /// Who sent an inbound message, as the allow-list, the reply target and
+    /// the host see it.
+    ///
+    /// A phone-addressed sender is its E.164 number. A LID-addressed sender
+    /// (WhatsApp's privacy identifier, `@lid`) is the phone that came with
+    /// the message (`sender_alt`) when there is one, else the LID JID itself
+    /// (`<lid>@lid`): never the LID dressed as a phone, which a reply would
+    /// send to a phone JID that is not this person.
+    ///
+    /// The second value is every form `allowed_numbers` may name for this
+    /// sender, including the `+<lid>` form earlier builds compared, so an
+    /// existing allow-list keeps matching.
+    fn sender_identity(
+        sender: &whatsapp_rust::Jid,
+        sender_alt: Option<&whatsapp_rust::Jid>,
+    ) -> (String, Vec<String>) {
+        let as_phone = |user: &str| {
+            if user.starts_with('+') {
+                user.to_string()
+            } else {
+                format!("+{user}")
+            }
+        };
+        if !sender.server.is_lid_family() {
+            let phone = as_phone(sender.user.as_str());
+            return (phone.clone(), vec![phone]);
+        }
+        let legacy = as_phone(sender.user.as_str());
+        match sender_alt.filter(|alt| alt.server.is_pn_family()) {
+            Some(alt) => {
+                let phone = as_phone(alt.user.as_str());
+                (phone.clone(), vec![phone, legacy])
+            }
+            None => (
+                format!("{}@{}", sender.user, sender.server.as_str()),
+                vec![legacy],
+            ),
+        }
+    }
+
     /// Convert a recipient (full JID like `12345@s.whatsapp.net` or an E.164
     /// number like `+1234567890`) into a `whatsapp-rust` JID.
     fn recipient_to_jid(&self, recipient: &str) -> Result<whatsapp_rust::Jid> {
@@ -350,15 +390,16 @@ impl Channel for WhatsAppWebChannel {
 
                                 // Sender JID can use either the legacy `s.whatsapp.net`
                                 // server (phone-number addressing) or the newer `lid`
-                                // server (privacy-preserving identifier). Render the
-                                // user portion in E.164 with a leading `+` for the
-                                // allowed-list check + downstream subscriber.
-                                let sender_user = info.source.sender.user.clone();
-                                let normalized = if sender_user.starts_with('+') {
-                                    sender_user.to_string()
-                                } else {
-                                    format!("+{sender_user}")
-                                };
+                                // server (privacy-preserving identifier): a phone in
+                                // E.164, or a LID kept as a JID (`sender_identity`).
+                                let (normalized, allow_forms) = Self::sender_identity(
+                                    &info.source.sender,
+                                    info.source.sender_alt.as_ref(),
+                                );
+                                // The name the sender set for themselves, if any.
+                                let sender_name = Some(info.push_name.trim())
+                                    .filter(|name| !name.is_empty())
+                                    .map(str::to_string);
                                 let chat = info.source.chat.to_string();
                                 let reply_target = Self::compute_reply_target(&chat, &normalized);
 
@@ -373,12 +414,14 @@ impl Channel for WhatsAppWebChannel {
                                 tracing::info!(
                                     "📨 WhatsApp inbound: chat={} sender={} text_len={}",
                                     Self::redact_recipient(&chat),
-                                    Self::redact_phone(&normalized),
+                                    Self::redact_recipient(&normalized),
                                     text.len()
                                 );
 
                                 if allowed_numbers.is_empty()
-                                    || allowed_numbers.iter().any(|n| n == "*" || n == &normalized)
+                                    || allowed_numbers
+                                        .iter()
+                                        .any(|n| n == "*" || allow_forms.contains(n))
                                 {
                                     // Record group provenance: this group has had at
                                     // least one allow-listed participant message in,
@@ -398,6 +441,7 @@ impl Channel for WhatsAppWebChannel {
                                             content: text,
                                             timestamp: chrono::Utc::now().timestamp_millis() as u64,
                                             thread_ts: None,
+                                            sender_name,
                                         })
                                         .await
                                     {
@@ -409,7 +453,7 @@ impl Channel for WhatsAppWebChannel {
                                 } else {
                                     tracing::warn!(
                                         "WhatsApp Web: message from {} not in allowed list",
-                                        Self::redact_phone(&normalized)
+                                        Self::redact_recipient(&normalized)
                                     );
                                 }
                             }

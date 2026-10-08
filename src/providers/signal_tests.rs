@@ -34,6 +34,7 @@ fn make_envelope(source_number: Option<&str>, message: Option<&str>) -> Envelope
         }),
         story_message: None,
         timestamp: Some(1_700_000_000_000),
+        source_name: None,
     }
 }
 
@@ -251,6 +252,7 @@ fn sender_prefers_source_number() {
         data_message: None,
         story_message: None,
         timestamp: Some(1000),
+        source_name: None,
     };
     assert_eq!(SignalChannel::sender(&env), Some("+1111111111".to_string()));
 }
@@ -263,6 +265,7 @@ fn sender_falls_back_to_source() {
         data_message: None,
         story_message: None,
         timestamp: Some(1000),
+        source_name: None,
     };
     assert_eq!(SignalChannel::sender(&env), Some("uuid-123".to_string()));
 }
@@ -289,6 +292,7 @@ fn process_envelope_uuid_sender_dm() {
         }),
         story_message: None,
         timestamp: Some(1_700_000_000_000),
+        source_name: None,
     };
     let msg = ch.process_envelope(&env).unwrap();
     assert_eq!(msg.sender, uuid);
@@ -324,6 +328,7 @@ fn process_envelope_uuid_sender_in_group() {
         }),
         story_message: None,
         timestamp: Some(1_700_000_000_000),
+        source_name: None,
     };
     let msg = ch.process_envelope(&env).unwrap();
     assert_eq!(msg.sender, uuid);
@@ -342,6 +347,7 @@ fn sender_none_when_both_missing() {
         data_message: None,
         story_message: None,
         timestamp: None,
+        source_name: None,
     };
     assert_eq!(SignalChannel::sender(&env), None);
 }
@@ -399,6 +405,7 @@ fn process_envelope_skips_attachment_only() {
         }),
         story_message: None,
         timestamp: Some(1_700_000_000_000),
+        source_name: None,
     };
     assert!(ch.process_envelope(&env).is_none());
 }
@@ -454,4 +461,30 @@ fn envelope_defaults() {
     assert!(env.data_message.is_none());
     assert!(env.story_message.is_none());
     assert!(env.timestamp.is_none());
+}
+
+#[test]
+fn process_envelope_carries_the_profile_name() {
+    let ch = make_channel();
+    let mut env = make_envelope(Some("+1111111111"), Some("hi"));
+    env.source_name = Some(" Alice ".to_string());
+    let msg = ch.process_envelope(&env).unwrap();
+    assert_eq!(msg.sender, "+1111111111");
+    assert_eq!(msg.sender_name.as_deref(), Some("Alice"));
+}
+
+#[test]
+fn sse_envelope_reads_source_name() {
+    let json = r#"{"envelope":{"sourceNumber":"+1111111111","sourceName":"Alice","dataMessage":{"message":"hi","timestamp":1700000000000}}}"#;
+    let sse: SseEnvelope = serde_json::from_str(json).unwrap();
+    let env = sse.envelope.unwrap();
+    assert_eq!(env.source_name.as_deref(), Some("Alice"));
+    assert_eq!(
+        make_channel()
+            .process_envelope(&env)
+            .unwrap()
+            .sender_name
+            .as_deref(),
+        Some("Alice")
+    );
 }

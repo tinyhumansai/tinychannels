@@ -184,6 +184,7 @@ pub fn inbound_envelope_from_legacy_message(msg: &ChannelMessage) -> ChannelInbo
         },
         sender: SenderRef {
             id: msg.sender.clone(),
+            name: msg.sender_name.clone(),
             ..Default::default()
         },
         text: msg.content.clone(),
@@ -209,5 +210,6 @@ pub fn legacy_message_from_inbound_envelope(
             .topic_id
             .clone()
             .or_else(|| envelope.conversation.thread_id.clone()),
+        sender_name: envelope.sender.name.clone(),
     }
 }

@@ -401,6 +401,7 @@ impl YuanbaoChannel {
                     channel: "yuanbao".into(),
                     timestamp: ctx.msg.msg_time as u64,
                     thread_ts: None,
+                    sender_name: None,
                 };
                 if tx.send(msg).await.is_err() {
                     warn!("[yuanbao] dispatch receiver gone — dropping message");

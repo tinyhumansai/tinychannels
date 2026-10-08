@@ -263,3 +263,41 @@ fn whatsapp_web_should_allow_outbound_empty_allowlist_passes_dm() {
     let ch = WhatsAppWebChannel::new("/tmp/t.db".into(), None, None, vec![]);
     assert!(ch.should_allow_outbound("+9999999999"));
 }
+
+#[test]
+#[cfg(feature = "whatsapp-web")]
+fn a_phone_addressed_sender_is_its_number() {
+    let phone = whatsapp_rust::Jid::pn("15550001111");
+    let (sender, allow) = WhatsAppWebChannel::sender_identity(&phone, None);
+    assert_eq!(sender, "+15550001111");
+    assert_eq!(allow, vec!["+15550001111".to_string()]);
+}
+
+#[test]
+#[cfg(feature = "whatsapp-web")]
+fn a_lid_sender_with_its_phone_is_the_phone() {
+    let lid = whatsapp_rust::Jid::lid("98765432101234");
+    let phone = whatsapp_rust::Jid::pn("15550001111");
+    let (sender, allow) = WhatsAppWebChannel::sender_identity(&lid, Some(&phone));
+    assert_eq!(sender, "+15550001111");
+    // The phone, and the form earlier builds compared, both match.
+    assert_eq!(
+        allow,
+        vec!["+15550001111".to_string(), "+98765432101234".to_string()]
+    );
+}
+
+#[test]
+#[cfg(feature = "whatsapp-web")]
+fn a_lid_sender_alone_stays_a_lid_jid_not_a_phone() {
+    let lid = whatsapp_rust::Jid::lid("98765432101234");
+    let (sender, allow) = WhatsAppWebChannel::sender_identity(&lid, None);
+    assert_eq!(sender, "98765432101234@lid");
+    assert!(!sender.starts_with('+'));
+    assert_eq!(allow, vec!["+98765432101234".to_string()]);
+    // A DM reply goes back to the LID JID, not to a phone JID of its digits.
+    let reply = WhatsAppWebChannel::compute_reply_target("98765432101234@lid", &sender);
+    assert_eq!(reply, "98765432101234@lid");
+    let jid = make_channel().recipient_to_jid(&reply).unwrap();
+    assert!(jid.server.is_lid_family());
+}

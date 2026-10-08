@@ -20,6 +20,7 @@ fn message(channel: &str, sender: &str, reply_target: &str) -> ChannelMessage {
         channel: channel.into(),
         timestamp: 123,
         thread_ts: None,
+        sender_name: None,
     }
 }
 

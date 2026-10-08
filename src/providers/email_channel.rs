@@ -424,6 +424,7 @@ impl EmailChannel {
                 channel: "email".to_string(),
                 timestamp: email.timestamp,
                 thread_ts: None,
+                sender_name: None,
             };
 
             if tx.send(msg).await.is_err() {

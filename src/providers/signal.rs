@@ -45,6 +45,9 @@ struct Envelope {
     source: Option<String>,
     #[serde(rename = "sourceNumber", default)]
     source_number: Option<String>,
+    /// The sender's profile name, as signal-cli reports it.
+    #[serde(rename = "sourceName", default)]
+    source_name: Option<String>,
     #[serde(rename = "dataMessage", default)]
     data_message: Option<DataMessage>,
     #[serde(rename = "storyMessage", default)]
@@ -291,6 +294,12 @@ impl SignalChannel {
             channel: "signal".to_string(),
             timestamp: timestamp / 1000, // millis to secs.
             thread_ts: None,
+            sender_name: envelope
+                .source_name
+                .as_deref()
+                .map(str::trim)
+                .filter(|name| !name.is_empty())
+                .map(str::to_string),
         })
     }
 }

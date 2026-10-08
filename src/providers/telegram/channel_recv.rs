@@ -12,6 +12,8 @@ use std::time::Instant;
 #[derive(Debug, Clone)]
 pub(crate) struct TelegramIncomingMessageContext {
     pub(crate) sender_identity: String,
+    /// The sender's first and last name, else their username.
+    pub(crate) sender_name: Option<String>,
     pub(crate) reply_target: String,
     pub(crate) chat_id: String,
     pub(crate) message_id: i64,
@@ -767,6 +769,28 @@ impl TelegramChannel {
         }
     }
 
+    /// A Telegram user's display name: first and last name, else their
+    /// username. `None` when the user object has neither.
+    pub(crate) fn sender_display_name(from: Option<&serde_json::Value>) -> Option<String> {
+        let from = from?;
+        let part = |key: &str| {
+            from.get(key)
+                .and_then(serde_json::Value::as_str)
+                .map(str::trim)
+                .filter(|part| !part.is_empty())
+        };
+        let full = [part("first_name"), part("last_name")]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(" ");
+        if full.is_empty() {
+            part("username").map(str::to_string)
+        } else {
+            Some(full)
+        }
+    }
+
     pub(crate) fn parse_incoming_message_context(
         &self,
         message: &serde_json::Value,
@@ -784,6 +808,8 @@ impl TelegramChannel {
             .and_then(|from| from.get("id"))
             .and_then(serde_json::Value::as_i64)
             .map(|id| id.to_string());
+
+        let sender_name = Self::sender_display_name(message.get("from"));
 
         let sender_identity = if username == "unknown" {
             sender_id.clone().unwrap_or_else(|| "unknown".to_string())
@@ -861,6 +887,7 @@ impl TelegramChannel {
 
         Some(TelegramIncomingMessageContext {
             sender_identity,
+            sender_name,
             reply_target,
             chat_id,
             message_id,
@@ -884,6 +911,7 @@ impl TelegramChannel {
                 .unwrap_or_default()
                 .as_secs(),
             thread_ts: Some(ctx.message_id.to_string()),
+            sender_name: ctx.sender_name,
         }
     }
 

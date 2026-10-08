@@ -794,3 +794,42 @@ fn whatsapp_parse_special_characters() {
         "<script>alert('xss')</script> & \"quotes\" 'apostrophe'"
     );
 }
+
+#[test]
+fn whatsapp_parse_takes_the_senders_profile_name() {
+    let ch = make_channel();
+    let payload = serde_json::json!({
+        "entry": [{
+            "changes": [{
+                "value": {
+                    "contacts": [
+                        { "wa_id": "9999999999", "profile": { "name": "Someone Else" } },
+                        { "wa_id": "1234567890", "profile": { "name": " Alice " } }
+                    ],
+                    "messages": [{
+                        "from": "1234567890",
+                        "timestamp": "1700000000",
+                        "text": { "body": "hi" }
+                    }]
+                }
+            }]
+        }]
+    });
+    let msgs = ch.parse_webhook_payload(&payload);
+    assert_eq!(msgs.len(), 1);
+    assert_eq!(msgs[0].sender, "+1234567890");
+    assert_eq!(msgs[0].sender_name.as_deref(), Some("Alice"));
+}
+
+#[test]
+fn whatsapp_parse_without_contacts_has_no_name() {
+    let ch = make_channel();
+    let payload = serde_json::json!({
+        "entry": [{ "changes": [{ "value": { "messages": [{
+            "from": "1234567890", "timestamp": "1700000000", "text": { "body": "hi" }
+        }] } }] }]
+    });
+    let msgs = ch.parse_webhook_payload(&payload);
+    assert_eq!(msgs.len(), 1);
+    assert_eq!(msgs[0].sender_name, None);
+}
