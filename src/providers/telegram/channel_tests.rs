@@ -2161,3 +2161,31 @@ async fn start_onboarding_is_private_only_and_consumes_the_code() {
         "a group /start leaves the one-time code intact"
     );
 }
+
+#[test]
+fn telegram_sender_name_is_first_and_last_name() {
+    let from = serde_json::json!({
+        "id": 42, "username": "alice_w", "first_name": "Alice", "last_name": "Wong"
+    });
+    assert_eq!(
+        TelegramChannel::sender_display_name(Some(&from)).as_deref(),
+        Some("Alice Wong")
+    );
+    let first_only = serde_json::json!({ "id": 42, "first_name": " Alice " });
+    assert_eq!(
+        TelegramChannel::sender_display_name(Some(&first_only)).as_deref(),
+        Some("Alice")
+    );
+}
+
+#[test]
+fn telegram_sender_name_falls_back_to_username_then_none() {
+    let username_only = serde_json::json!({ "id": 42, "username": "alice_w" });
+    assert_eq!(
+        TelegramChannel::sender_display_name(Some(&username_only)).as_deref(),
+        Some("alice_w")
+    );
+    let bare = serde_json::json!({ "id": 42 });
+    assert_eq!(TelegramChannel::sender_display_name(Some(&bare)), None);
+    assert_eq!(TelegramChannel::sender_display_name(None), None);
+}

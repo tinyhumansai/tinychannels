@@ -21,6 +21,7 @@ impl Channel for DummyChannel {
             channel: "dummy".into(),
             timestamp: 123,
             thread_ts: None,
+            sender_name: None,
         })
         .await
         .map_err(|e| anyhow::anyhow!(e.to_string()))
@@ -37,6 +38,7 @@ fn channel_message_clone_preserves_fields() {
         channel: "dummy".into(),
         timestamp: 999,
         thread_ts: None,
+        sender_name: None,
     };
 
     let cloned = message.clone();

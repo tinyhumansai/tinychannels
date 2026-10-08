@@ -76,6 +76,22 @@ impl WhatsAppChannel {
     }
 
     /// Parse an incoming webhook payload from Meta and extract messages
+    /// The profile name of the contact `wa_id` in a webhook `value`
+    /// (`contacts[].profile.name`, the name the sender set for themselves).
+    fn contact_name(value: &serde_json::Value, wa_id: &str) -> Option<String> {
+        value
+            .get("contacts")?
+            .as_array()?
+            .iter()
+            .find(|contact| contact.get("wa_id").and_then(|id| id.as_str()) == Some(wa_id))?
+            .get("profile")?
+            .get("name")?
+            .as_str()
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_string)
+    }
+
     pub fn parse_webhook_payload(&self, payload: &serde_json::Value) -> Vec<ChannelMessage> {
         let mut messages = Vec::new();
 
@@ -158,6 +174,7 @@ impl WhatsAppChannel {
                         channel: "whatsapp".to_string(),
                         timestamp,
                         thread_ts: None,
+                        sender_name: Self::contact_name(value, from),
                     });
                 }
             }

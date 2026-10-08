@@ -476,6 +476,7 @@ impl LarkChannel {
                             .unwrap_or_default()
                             .as_secs(),
                         thread_ts: None,
+                        sender_name: None,
                     };
 
                     tracing::debug!("Lark WS: message in {}", lark_msg.chat_id);
@@ -638,6 +639,7 @@ impl LarkChannel {
             channel: "lark".to_string(),
             timestamp,
             thread_ts: None,
+            sender_name: None,
         });
 
         messages

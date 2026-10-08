@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 /// Serde-derived because this type crosses the bus: the module forwards it to
 /// the host's `DeliverInbound` callback. Field names are the wire contract —
 /// renaming one is a decode failure at the far end, not a compile error.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// `Default` is derived so a caller that fills only some fields can spread
+/// `..Default::default()` and keep compiling when an optional field is added.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ChannelMessage {
     pub id: String,
     pub sender: String,
@@ -17,6 +20,13 @@ pub struct ChannelMessage {
     /// Platform thread identifier (e.g. Slack `ts`, Discord thread ID).
     /// When set, replies should be posted as threaded responses.
     pub thread_ts: Option<String>,
+    /// The sender's display name as the platform gives it (WhatsApp push
+    /// name, Telegram first and last name, Signal profile name, ...). Never
+    /// a saved contact name: no channel exposes one. `None` when the
+    /// platform gives none. Optional on the wire, so a host or module built
+    /// before this field still decodes the message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sender_name: Option<String>,
 }
 
 /// Message to send through a channel

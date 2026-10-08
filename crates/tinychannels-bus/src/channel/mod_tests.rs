@@ -318,6 +318,7 @@ fn legacy_inbound_envelope_preserves_telegram_topics_separately_from_threads() {
         reply_target: "-100123".into(),
         timestamp: 123,
         thread_ts: Some(" topic-99 ".into()),
+        sender_name: None,
     };
 
     let envelope = inbound_envelope_from_legacy_message(&msg);
@@ -344,6 +345,7 @@ fn legacy_inbound_envelope_projects_back_to_legacy_messages() {
         reply_target: "-100123".into(),
         timestamp: 123,
         thread_ts: Some("topic-99".into()),
+        sender_name: None,
     };
     let envelope = inbound_envelope_from_legacy_message(&msg);
 
@@ -359,6 +361,45 @@ fn legacy_inbound_envelope_projects_back_to_legacy_messages() {
 }
 
 #[test]
+fn the_sender_name_survives_the_envelope_both_ways() {
+    let msg = ChannelMessage {
+        id: "msg-1".into(),
+        channel: "whatsapp".into(),
+        sender: "+15550001111".into(),
+        sender_name: Some("Alice".into()),
+        ..Default::default()
+    };
+    let envelope = inbound_envelope_from_legacy_message(&msg);
+    assert_eq!(envelope.sender.name.as_deref(), Some("Alice"));
+
+    let projected = legacy_message_from_inbound_envelope(&envelope, 1);
+    assert_eq!(projected.sender_name.as_deref(), Some("Alice"));
+}
+
+#[test]
+fn the_sender_name_is_optional_on_the_wire() {
+    // A message from a build before the field decodes, with no name.
+    let old = json!({
+        "id": "m", "sender": "+1555", "reply_target": "+1555", "content": "hi",
+        "channel": "whatsapp", "timestamp": 1, "thread_ts": null
+    });
+    let decoded: ChannelMessage = serde_json::from_value(old).unwrap();
+    assert_eq!(decoded.sender_name, None);
+
+    // No name is not written, so an older decoder sees the same shape.
+    let unnamed = serde_json::to_value(&decoded).unwrap();
+    assert!(unnamed.get("sender_name").is_none());
+    let named = ChannelMessage {
+        sender_name: Some("Alice".into()),
+        ..decoded
+    };
+    assert_eq!(
+        serde_json::to_value(&named).unwrap()["sender_name"],
+        "Alice"
+    );
+}
+
+#[test]
 fn legacy_inbound_envelope_preserves_non_telegram_threads() {
     let msg = ChannelMessage {
         id: "msg-1".into(),
@@ -368,6 +409,7 @@ fn legacy_inbound_envelope_preserves_non_telegram_threads() {
         reply_target: "channel-123".into(),
         timestamp: 123,
         thread_ts: Some(" thread-99 ".into()),
+        sender_name: None,
     };
 
     let envelope = inbound_envelope_from_legacy_message(&msg);
@@ -397,6 +439,7 @@ fn legacy_session_key_candidates_match_openhuman_helpers() {
         reply_target: "-100123".into(),
         timestamp: 123,
         thread_ts: Some("topic-99".into()),
+        sender_name: None,
     };
     let keys = conversation_history_key_candidates(&msg);
     assert_eq!(keys.conversation_history_key, "telegram_alice_-100123");
