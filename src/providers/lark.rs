@@ -736,18 +736,20 @@ impl LarkChannel {
             use axum::http::StatusCode;
             use axum::response::IntoResponse;
 
+            // Both challenge and event callbacks must prove knowledge of the
+            // verification token. A missing token is never authentication.
+            let token_ok = !state.verification_token.is_empty()
+                && payload
+                    .get("token")
+                    .or_else(|| payload.get("header").and_then(|header| header.get("token")))
+                    .and_then(|token| token.as_str())
+                    .is_some_and(|token| token == state.verification_token);
+            if !token_ok {
+                return (StatusCode::FORBIDDEN, "invalid token").into_response();
+            }
+
             // URL verification challenge
             if let Some(challenge) = payload.get("challenge").and_then(|c| c.as_str()) {
-                // Verify token if present
-                let token_ok = payload
-                    .get("token")
-                    .and_then(|t| t.as_str())
-                    .is_none_or(|t| t == state.verification_token);
-
-                if !token_ok {
-                    return (StatusCode::FORBIDDEN, "invalid token").into_response();
-                }
-
                 let resp = serde_json::json!({ "challenge": challenge });
                 return (StatusCode::OK, Json(resp)).into_response();
             }
@@ -767,6 +769,9 @@ impl LarkChannel {
         let port = self.port.ok_or_else(|| {
             anyhow::anyhow!("Lark webhook mode requires `port` to be set in [channels_config.lark]")
         })?;
+        if self.verification_token.is_empty() {
+            anyhow::bail!("Lark webhook mode requires `verification_token`");
+        }
 
         let state = AppState {
             verification_token: self.verification_token.clone(),
