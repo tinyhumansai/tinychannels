@@ -21,7 +21,7 @@ tinybus-module = { path = "vendor/tinybus/crates/tinybus-module" }
 
 [workspace.package]
 # Releases update this sole workspace version before packaging every crate.
-version = "0.1.11"
+version = "0.1.12"
 
 [package]
 name = "tinychannels"
