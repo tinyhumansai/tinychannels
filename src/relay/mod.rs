@@ -1,10 +1,6 @@
 //! Relay connector transport.
-//!
-//! The contract primitives — frames, HMAC auth, the capability descriptor, and
-//! the identities/timeouts/handler traits the loop speaks — live in
-//! [`tinychannels_bus::relay`] and are re-exported here. What remains in this
-//! crate is the part that needs a runtime: the frame transport loop and the
-//! WebSocket dialer.
+//! Frames/data are shared bus DTOs; authentication and I/O seams are owned by
+//! the runtime and re-exported here alongside the provider transport drivers.
 
 pub mod runtime;
 pub mod transport;
@@ -15,14 +11,14 @@ pub use runtime::{
     current_relay_transport, register_relay_transport, relay_runtime_fronts_channel,
     send_outbound_intent, unregister_relay_transport,
 };
-pub use tinychannels_bus::relay::{
+pub use tinychannels_runtime::relay::{
     AuthenticatedRelayInboundEvent, CONTRACT_VERSION, CapabilityDescriptor,
-    ConnectorToGatewayFrame, DEFAULT_MAX_MESSAGE_LENGTH, DEFAULT_MAX_SKEW_SECONDS,
-    DEFAULT_UPGRADE_TTL_SECONDS, DELIVERY_SIG_HEADER, DELIVERY_TS_HEADER, FRAME_DESCRIPTOR,
-    FRAME_GOING_IDLE, FRAME_GOING_IDLE_ACK, FRAME_HELLO, FRAME_INBOUND, FRAME_INBOUND_ACK,
-    FRAME_INTERRUPT, FRAME_INTERRUPT_INBOUND, FRAME_OUTBOUND, FRAME_OUTBOUND_RESULT,
-    FRAME_PASSTHROUGH_FORWARD, GatewayToConnectorFrame, PassthroughForward, RelayDescriptorOptions,
-    RelayFrameDialer, RelayFrameIo, RelayIdentity, RelayInboundHandler,
+    ConnectorToGatewayFrame, ConnectorToGatewayFrameExt, DEFAULT_MAX_MESSAGE_LENGTH,
+    DEFAULT_MAX_SKEW_SECONDS, DEFAULT_UPGRADE_TTL_SECONDS, DELIVERY_SIG_HEADER, DELIVERY_TS_HEADER,
+    FRAME_DESCRIPTOR, FRAME_GOING_IDLE, FRAME_GOING_IDLE_ACK, FRAME_HELLO, FRAME_INBOUND,
+    FRAME_INBOUND_ACK, FRAME_INTERRUPT, FRAME_INTERRUPT_INBOUND, FRAME_OUTBOUND,
+    FRAME_OUTBOUND_RESULT, FRAME_PASSTHROUGH_FORWARD, GatewayToConnectorFrame, PassthroughForward,
+    RelayDescriptorOptions, RelayFrameDialer, RelayFrameIo, RelayIdentity, RelayInboundHandler,
     RelayInterruptInboundHandler, RelayPassthroughHandler, RelayPlatformEntry,
     RelayReconnectPolicy, RelayTransportError, RelayTransportTimeouts, actions, auth,
     delivery_payload, descriptor, frames, make_token, make_token_at, make_upgrade_token,

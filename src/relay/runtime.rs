@@ -5,6 +5,7 @@
 //! have no handle on the runtime) can route an outbound intent through it.
 
 use std::sync::{Arc, OnceLock, RwLock};
+use tinychannels_runtime::config::RelayRuntimeConfigExt as _;
 
 use anyhow::Result;
 use serde_json::Value;

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use tinychannels_bus::Channel;
+use crate::traits::Channel;
 
 /// Outcome of one channel's health check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

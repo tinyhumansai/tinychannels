@@ -231,7 +231,10 @@ fn default_irc_port_is_6697() {
 
 #[test]
 fn default_draft_update_interval_ms_is_1000() {
-    assert_eq!(default_draft_update_interval_ms(), 1000);
+    let config: TelegramConfig =
+        serde_json::from_value(serde_json::json!({"bot_token": "test", "allowed_users": []}))
+            .unwrap();
+    assert_eq!(config.draft_update_interval_ms, 1000);
 }
 
 #[test]

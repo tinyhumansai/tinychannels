@@ -1,7 +1,6 @@
 //! Normalized inbound channel envelopes.
 
 use crate::channel::types::{ChannelRef, ConversationRef, SenderRef};
-use crate::traits::ChannelMessage;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -97,49 +96,6 @@ pub struct InboundMediaPayload {
     pub media_transcribed_indexes: Option<Vec<usize>>,
 }
 
-impl InboundMediaPayload {
-    pub fn from_media(media: &[MediaReference]) -> Self {
-        let transcribed_indexes: Vec<usize> = media
-            .iter()
-            .enumerate()
-            .filter_map(|(index, item)| item.transcribed.then_some(index))
-            .collect();
-        Self {
-            media_path: media.first().and_then(|m| m.path.clone()),
-            media_url: media
-                .first()
-                .and_then(|m| m.url.clone().or_else(|| m.path.clone())),
-            media_type: media.first().and_then(media_type),
-            media_paths: aligned_strings(media.iter().map(|m| m.path.clone()).collect()),
-            media_urls: aligned_strings(
-                media
-                    .iter()
-                    .map(|m| m.url.clone().or_else(|| m.path.clone()))
-                    .collect(),
-            ),
-            media_types: aligned_strings(media.iter().map(media_type).collect()),
-            media_transcribed_indexes: (!transcribed_indexes.is_empty())
-                .then_some(transcribed_indexes),
-        }
-    }
-}
-
-fn media_type(media: &MediaReference) -> Option<String> {
-    media
-        .content_type
-        .clone()
-        .or_else(|| Some(format!("{:?}", media.kind).to_ascii_lowercase()))
-}
-
-fn aligned_strings(values: Vec<Option<String>>) -> Option<Vec<String>> {
-    values.iter().any(Option::is_some).then(|| {
-        values
-            .into_iter()
-            .map(|value| value.unwrap_or_default())
-            .collect()
-    })
-}
-
 /// Normalized inbound event facts consumed by hosts and harness bridges.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
@@ -152,64 +108,4 @@ pub struct ChannelInboundEnvelope {
     pub access: AccessContext,
     pub media: Vec<MediaReference>,
     pub raw: Option<Value>,
-}
-
-/// Project the legacy host `ChannelMessage` shape into a normalized inbound
-/// envelope without inferring provider-specific conversation kind.
-pub fn inbound_envelope_from_legacy_message(msg: &ChannelMessage) -> ChannelInboundEnvelope {
-    let thread_ts = msg
-        .thread_ts
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(str::to_owned);
-
-    let (thread_id, topic_id) = if msg.channel == "telegram" {
-        (None, thread_ts)
-    } else {
-        (thread_ts, None)
-    };
-
-    ChannelInboundEnvelope {
-        channel: ChannelRef {
-            id: msg.channel.clone(),
-            account_id: None,
-        },
-        message_id: msg.id.clone(),
-        conversation: ConversationRef {
-            id: msg.reply_target.clone(),
-            thread_id,
-            topic_id,
-            ..Default::default()
-        },
-        sender: SenderRef {
-            id: msg.sender.clone(),
-            name: msg.sender_name.clone(),
-            ..Default::default()
-        },
-        text: msg.content.clone(),
-        ..Default::default()
-    }
-}
-
-/// Project a normalized inbound envelope back into the legacy host
-/// `ChannelMessage` shape used by existing OpenHuman dispatch loops.
-pub fn legacy_message_from_inbound_envelope(
-    envelope: &ChannelInboundEnvelope,
-    timestamp: u64,
-) -> ChannelMessage {
-    ChannelMessage {
-        id: envelope.message_id.clone(),
-        sender: envelope.sender.id.clone(),
-        reply_target: envelope.conversation.id.clone(),
-        content: envelope.text.clone(),
-        channel: envelope.channel.id.clone(),
-        timestamp,
-        thread_ts: envelope
-            .conversation
-            .topic_id
-            .clone()
-            .or_else(|| envelope.conversation.thread_id.clone()),
-        sender_name: envelope.sender.name.clone(),
-    }
 }

@@ -1,4 +1,5 @@
 use super::*;
+use tinychannels_runtime::config::YuanbaoConfigExt as _;
 
 #[test]
 fn default_config_is_invalid() {

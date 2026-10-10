@@ -298,7 +298,7 @@ fn validate_credentials_rejects_unsupported_mode() {
 
 #[test]
 fn serialization_produces_expected_structure() {
-    let def = telegram_definition();
+    let def = find_channel_definition("telegram").unwrap();
     let v = serde_json::to_value(&def).expect("serialize");
     let obj = v.as_object().expect("top-level object");
     assert_eq!(obj.get("id").and_then(|v| v.as_str()), Some("telegram"));

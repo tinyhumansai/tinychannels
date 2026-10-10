@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use tinychannels_runtime::config::YuanbaoConfigExt as _;
 
 use async_trait::async_trait;
 use tokio::sync::{Mutex as TokioMutex, mpsc, watch};

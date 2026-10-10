@@ -1,6 +1,7 @@
 //! Validating and verifying Yuanbao credentials from a connect form.
 
 use serde_json::Value;
+use tinychannels_runtime::config::YuanbaoConfigExt as _;
 
 use super::YuanbaoConfig;
 use super::sign::SignManager;

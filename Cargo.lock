@@ -2633,22 +2633,12 @@ dependencies = [
 name = "tinychannels-bus"
 version = "0.1.13"
 dependencies = [
- "anyhow",
- "async-trait",
  "base64 0.23.1",
- "hex",
- "hmac",
- "parking_lot",
- "rand 0.10.2",
  "schemars",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "thiserror 2.0.20",
- "tokio",
  "toml",
- "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -2671,10 +2661,18 @@ version = "0.1.13"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.23.1",
+ "hex",
+ "hmac",
+ "parking_lot",
  "rand 0.10.2",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
  "tinychannels-bus",
  "tokio",
  "tokio-util",
+ "toml",
  "tracing",
  "uuid",
 ]

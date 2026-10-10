@@ -14,7 +14,7 @@
 //! # Which half to depend on
 //!
 //! Depend on `tinychannels-bus` alone if you only need to *name* channel types
-//! — an envelope in an event enum, the config schema, session-key derivation.
+//! — an envelope in an event enum or the config schema.
 //! That costs serde and little else. Depend on this crate when you need to
 //! actually open a socket, which pulls `reqwest`, `rusqlite`, `rustls` and
 //! `tokio-tungstenite`.
@@ -28,12 +28,13 @@ pub use tokio_tungstenite;
 // name. Prefer `tinychannels_bus::…` in new code.
 pub use tinychannels_bus;
 
-// Contract modules, re-exported at the paths they have always occupied. These
+// Contract declarations and runtime modules preserve their legacy paths. These
 // are `pub use` of the *same* items, not copies — there is exactly one
 // `ChannelInboundEnvelope` in the build.
-pub use tinychannels_bus::{
-    adapters, capabilities, channel, config, context, controllers, error, names, security, text,
-    traits, version,
+pub use tinychannels_bus::{capabilities, error, names, version};
+
+pub use tinychannels_runtime::{
+    adapters, channel, config, context, controllers, security, text, traits,
 };
 
 pub mod approvals;
@@ -57,14 +58,17 @@ pub use providers::{
     WhatsAppChannel, WhatsAppWebChannel, YuanbaoChannel,
 };
 pub use tinychannels_bus::{
-    BUS_NAME, CONTRACT_VERSION, Channel, ChannelAuthMode, ChannelCapabilities, ChannelDefinition,
-    ChannelInboundEnvelope, ChannelMessage, ChannelOutboundIntent, ChannelSendExt, ChannelsConfig,
+    BUS_NAME, CONTRACT_VERSION, ChannelAuthMode, ChannelCapabilities, ChannelDefinition,
+    ChannelInboundEnvelope, ChannelMessage, ChannelOutboundIntent, ChannelsConfig,
     DeliveryDurability, HOST_BUS_NAME, HOST_OBJECT_PATH, METHODS, OBJECT_PATH, OutboundPayload,
-    Result, SendMessage, TinyChannelsError, build_session_key_for_inbound_envelope,
-    capabilities_for, inbound_envelope_from_legacy_message, is_compatible,
-    legacy_message_from_inbound_envelope, legacy_message_value_from_outbound_intent, methods,
+    Result, SendMessage, TinyChannelsError, capabilities_for, is_compatible, methods,
+};
+pub use tinychannels_runtime::channel::{
+    build_session_key_for_inbound_envelope, inbound_envelope_from_legacy_message,
+    legacy_message_from_inbound_envelope, legacy_message_value_from_outbound_intent,
     outbound_intent_from_legacy_message, outbound_intent_from_send_message,
 };
+pub use tinychannels_runtime::{Channel, ChannelSendExt, SendMessageExt};
 // Re-exported separately so each can follow its provider's feature gate.
 #[cfg(feature = "email-send")]
 pub use providers::EmailChannel;
