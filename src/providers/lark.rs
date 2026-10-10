@@ -713,6 +713,48 @@ impl Channel for LarkChannel {
     }
 }
 
+#[derive(Clone)]
+struct LarkWebhookState {
+    verification_token: String,
+    channel: Arc<LarkChannel>,
+    tx: tokio::sync::mpsc::Sender<ChannelMessage>,
+}
+
+async fn handle_lark_webhook(
+    axum::extract::State(state): axum::extract::State<LarkWebhookState>,
+    axum::Json(payload): axum::Json<serde_json::Value>,
+) -> axum::response::Response {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+
+    // Both challenge and event callbacks must prove knowledge of the
+    // verification token. A missing token is never authentication.
+    let token_ok = !state.verification_token.is_empty()
+        && payload
+            .get("token")
+            .or_else(|| payload.get("header").and_then(|header| header.get("token")))
+            .and_then(|token| token.as_str())
+            .is_some_and(|token| token == state.verification_token);
+    if !token_ok {
+        return (StatusCode::FORBIDDEN, "invalid token").into_response();
+    }
+
+    if let Some(challenge) = payload.get("challenge").and_then(|c| c.as_str()) {
+        let resp = serde_json::json!({ "challenge": challenge });
+        return (StatusCode::OK, axum::Json(resp)).into_response();
+    }
+
+    let messages = state.channel.parse_event_payload(&payload);
+    for msg in messages {
+        if state.tx.send(msg).await.is_err() {
+            tracing::warn!("Lark: message channel closed");
+            break;
+        }
+    }
+
+    (StatusCode::OK, "ok").into_response()
+}
+
 impl LarkChannel {
     /// HTTP callback server (legacy — requires a public endpoint).
     /// Use `listen()` (WS long-connection) for new deployments.
@@ -720,51 +762,7 @@ impl LarkChannel {
         &self,
         tx: tokio::sync::mpsc::Sender<ChannelMessage>,
     ) -> anyhow::Result<()> {
-        use axum::{Json, Router, extract::State, routing::post};
-
-        #[derive(Clone)]
-        struct AppState {
-            verification_token: String,
-            channel: Arc<LarkChannel>,
-            tx: tokio::sync::mpsc::Sender<ChannelMessage>,
-        }
-
-        async fn handle_event(
-            State(state): State<AppState>,
-            Json(payload): Json<serde_json::Value>,
-        ) -> axum::response::Response {
-            use axum::http::StatusCode;
-            use axum::response::IntoResponse;
-
-            // Both challenge and event callbacks must prove knowledge of the
-            // verification token. A missing token is never authentication.
-            let token_ok = !state.verification_token.is_empty()
-                && payload
-                    .get("token")
-                    .or_else(|| payload.get("header").and_then(|header| header.get("token")))
-                    .and_then(|token| token.as_str())
-                    .is_some_and(|token| token == state.verification_token);
-            if !token_ok {
-                return (StatusCode::FORBIDDEN, "invalid token").into_response();
-            }
-
-            // URL verification challenge
-            if let Some(challenge) = payload.get("challenge").and_then(|c| c.as_str()) {
-                let resp = serde_json::json!({ "challenge": challenge });
-                return (StatusCode::OK, Json(resp)).into_response();
-            }
-
-            // Parse event messages
-            let messages = state.channel.parse_event_payload(&payload);
-            for msg in messages {
-                if state.tx.send(msg).await.is_err() {
-                    tracing::warn!("Lark: message channel closed");
-                    break;
-                }
-            }
-
-            (StatusCode::OK, "ok").into_response()
-        }
+        use axum::{Router, routing::post};
 
         let port = self.port.ok_or_else(|| {
             anyhow::anyhow!("Lark webhook mode requires `port` to be set in [channels_config.lark]")
@@ -773,7 +771,7 @@ impl LarkChannel {
             anyhow::bail!("Lark webhook mode requires `verification_token`");
         }
 
-        let state = AppState {
+        let state = LarkWebhookState {
             verification_token: self.verification_token.clone(),
             channel: Arc::new(LarkChannel::new(
                 self.app_id.clone(),
@@ -786,7 +784,7 @@ impl LarkChannel {
         };
 
         let app = Router::new()
-            .route("/lark", post(handle_event))
+            .route("/lark", post(handle_lark_webhook))
             .with_state(state);
 
         let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));

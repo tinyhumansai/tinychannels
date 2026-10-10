@@ -69,6 +69,56 @@ fn lark_parse_challenge() {
     assert!(msgs.is_empty());
 }
 
+#[tokio::test]
+async fn lark_webhook_requires_the_configured_token_for_challenges() {
+    use axum::http::StatusCode;
+
+    let (tx, _rx) = tokio::sync::mpsc::channel(1);
+    let state = LarkWebhookState {
+        verification_token: "test_verification_token".into(),
+        channel: Arc::new(make_channel()),
+        tx,
+    };
+    for payload in [
+        serde_json::json!({"challenge": "abc123"}),
+        serde_json::json!({"challenge": "abc123", "token": "wrong"}),
+    ] {
+        let response =
+            handle_lark_webhook(axum::extract::State(state.clone()), axum::Json(payload)).await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    for payload in [
+        serde_json::json!({"challenge": "abc123", "token": "test_verification_token"}),
+        serde_json::json!({"challenge": "abc123", "header": {"token": "test_verification_token"}}),
+    ] {
+        let response =
+            handle_lark_webhook(axum::extract::State(state.clone()), axum::Json(payload)).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&body).unwrap(),
+            serde_json::json!({"challenge": "abc123"})
+        );
+    }
+}
+
+#[tokio::test]
+async fn lark_webhook_rejects_empty_configured_token_before_listening() {
+    let channel = LarkChannel::new(
+        "cli_test_app_id".into(),
+        "test_app_secret".into(),
+        String::new(),
+        Some(0),
+        vec![],
+    );
+    let (tx, _rx) = tokio::sync::mpsc::channel(1);
+    let error = channel.listen_http(tx).await.unwrap_err();
+    assert!(error.to_string().contains("verification_token"));
+}
+
 #[test]
 fn lark_parse_valid_text_message() {
     let ch = make_channel();
