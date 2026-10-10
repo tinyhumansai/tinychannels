@@ -171,3 +171,43 @@ async fn build_memory_context_filters_entries_and_truncates_content() {
     assert!(!rendered.contains("too low"));
     assert!(rendered.contains("- long: "));
 }
+
+#[test]
+fn sender_history_cleanup_and_empty_compaction_preserve_other_senders() {
+    let histories: ConversationHistoryMap = Arc::new(Mutex::new(HashMap::from([
+        ("alice".into(), vec![ChatMessage::user("hi")]),
+        ("bob".into(), vec![ChatMessage::assistant("hello")]),
+    ])));
+    assert!(!compact_sender_history(&histories, "missing"));
+    assert!(compact_sender_history(&histories, "alice"));
+    clear_sender_history(&histories, "alice");
+    assert!(histories.lock().unwrap().contains_key("bob"));
+    assert!(!histories.lock().unwrap().contains_key("alice"));
+    assert!(!compact_history(&mut Vec::new()));
+    assert_eq!(effective_channel_message_timeout_secs(1), 30);
+    assert_eq!(effective_channel_message_timeout_secs(300), 300);
+}
+
+#[tokio::test]
+async fn memory_context_bounds_entries_and_total_text_without_empty_headers() {
+    let entries = (0..6)
+        .map(|i| MemoryEntry {
+            key: format!("fixture-{i}"),
+            content: "value".into(),
+            score: None,
+        })
+        .collect();
+    let rendered = build_memory_context(&MockMemory { entries }, "query", 0.0).await;
+    assert!(rendered.contains("fixture-3"));
+    assert!(!rendered.contains("fixture-4"));
+    let entries = vec![MemoryEntry {
+        key: "k".repeat(MEMORY_CONTEXT_MAX_CHARS),
+        content: "value".into(),
+        score: None,
+    }];
+    assert!(
+        build_memory_context(&MockMemory { entries }, "query", 0.0)
+            .await
+            .is_empty()
+    );
+}
