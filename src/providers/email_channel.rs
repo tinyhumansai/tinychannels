@@ -453,7 +453,7 @@ impl EmailChannel {
     }
 
     /// This channel's SMTP account as per-call [`SmtpCredentials`], for the
-    /// async [`MailSender`](crate::providers::mail::MailSender) seam.
+    /// async [`MailSender`] seam.
     ///
     /// `smtp_tls` maps to implicit TLS ([`SmtpSecurity::Ssl`]) and its absence to
     /// a plaintext connection ([`SmtpSecurity::None`]) — the same two transports
