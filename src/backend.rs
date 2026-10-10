@@ -15,6 +15,8 @@ use crate::controllers::{
 use crate::traits::SendMessage;
 use async_trait::async_trait;
 use serde_json::Value;
+use tinychannels_runtime::config::YuanbaoConfigExt as _;
+use tinychannels_runtime::controllers::ChannelDefinitionExt as _;
 
 /// Pluggable backend contract used by TinyChannels.
 ///

@@ -15,6 +15,7 @@ use serde_json::json;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use tinychannels_runtime::relay::ConnectorToGatewayFrameExt as _;
 use tokio::sync::Notify;
 use tokio::time::{Duration, sleep};
 

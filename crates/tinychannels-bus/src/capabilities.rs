@@ -3,7 +3,7 @@
 //! A host used to answer questions like "can this channel show an approval
 //! prompt?" or "does this channel understand `/status`?" by comparing the
 //! channel name with `"telegram"`. [`capabilities_for`] is the single table
-//! those answers come from, and [`crate::Channel::capabilities`] exposes it on
+//! those answers come from, and `tinychannels_runtime::Channel::capabilities` exposes it on
 //! every channel instance.
 //!
 //! The table is keyed by provider id. Inbound ids from a socket relay arrive

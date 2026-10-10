@@ -31,6 +31,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use tinychannels::config::WhatsAppConfigExt as _;
 
 use tinybus::{Connection, Error as BusError, Result as BusResult};
 use tinychannels::factory::{DefaultHttpClients, build_channels};

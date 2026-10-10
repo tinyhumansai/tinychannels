@@ -36,6 +36,9 @@ jobs:
         with:
           workspaces: .
 
+      - name: Check pure contract dependency closure
+        run: python3 scripts/check-bus-purity.py
+
       - name: Check formatting
         run: cargo fmt --all -- --check
 

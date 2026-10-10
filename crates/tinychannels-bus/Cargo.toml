@@ -17,44 +17,12 @@ readme = "README.md"
 keywords = ["messaging", "channels", "tinybus", "openhuman"]
 categories = ["data-structures", "api-bindings"]
 [dependencies]
-# Every payload that crosses the boundary is a typed Serde value.
-# The `Channel` seam reports provider failures as `anyhow::Error`.
-anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# Channel and controller config is surfaced to callers as JSON Schema.
 schemars = { version = "1", features = ["derive"] }
-# The contract owns its structured error taxonomy.
 thiserror = "2"
-# The `Channel` seam a provider implements is async.
-async-trait = "0.1"
-# Session-key derivation and relay HMAC signing. Both are rules both sides must
-# agree on exactly, so they belong to the contract rather than to either host.
-sha2 = "0.11"
-hmac = "0.13"
+# Serialization only: preserves PassthroughForward.body's existing Base64 wire encoding.
 base64 = "0.23"
-# The pairing-token store is a small in-memory set behind a lock.
-parking_lot = "0.12"
-# Pairing codes and message ids.
-rand = "0.10"
-uuid = { version = "1", features = ["v4"] }
-# Hex encoding for relay signatures and message digests.
-hex = "0.4"
-# Diagnostics on the pairing path.
-tracing = "0.1"
-# NOT a general runtime dependency. Two items need it and only these two: the
-# `Channel` seam hands a provider a `tokio::sync::mpsc::Sender` to publish
-# received messages on, and pairing verification runs its constant-time compare
-# on the blocking pool. Both are in-process seams that sit beside the wire
-# vocabulary rather than crossing a bus. Kept to `sync` + `rt` so a host that
-# only decodes payloads does not inherit a scheduler, an I/O driver or timers.
-tokio = { version = "1", default-features = false, features = ["sync", "rt"] }
 
 [dev-dependencies]
-serde_json = "1"
-# Test-only. The normal `tokio` dependency above is deliberately `sync` + `rt`;
-# `#[tokio::test]` additionally needs the macros and a multi-thread scheduler.
-# Keep this split — widening the normal dependency to satisfy a test would put a
-# scheduler into every host that only decodes payloads.
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
 toml = "1"

@@ -1,13 +1,13 @@
 //! Runtime mechanics shared by TinyChannels hosts.
 //!
-//! This crate deliberately owns no provider, persistence, event bus, or host
-//! policy. Hosts observe listener lifecycle through [`ListenerObserver`].
+//! This crate owns shared provider seams and algorithms, without concrete
+//! provider transports or host policy. Hosts observe listener lifecycle through [`ListenerObserver`].
 
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::traits::ChannelMessage;
 use rand::RngExt as _;
-use tinychannels_bus::{Channel, ChannelMessage};
 use tokio_util::sync::CancellationToken;
 
 mod cli;
@@ -200,3 +200,22 @@ mod runtime_extras_tests;
 #[cfg(test)]
 #[path = "lib_tests.rs"]
 mod tests;
+
+pub mod adapters;
+pub mod channel;
+pub mod context;
+pub mod delivery;
+pub mod relay;
+pub mod security;
+pub mod text;
+pub mod traits;
+pub use tinychannels_bus::{capabilities, error, names, version};
+pub use traits::{Channel, ChannelSendExt, SendMessageExt};
+
+pub mod controllers;
+
+pub mod config;
+
+#[cfg(test)]
+#[path = "relocation_tests.rs"]
+mod relocation_tests;

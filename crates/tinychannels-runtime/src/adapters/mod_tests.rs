@@ -100,3 +100,17 @@ async fn local_adapter_reports_configured_status() {
     );
     assert!(adapter.static_capabilities().reply);
 }
+
+#[tokio::test]
+async fn local_adapter_preserves_identity_and_ack_policy_across_stop() {
+    let sink = Arc::new(RecordingOutboundSink::default());
+    let adapter = local_adapter(sink.clone());
+    assert_eq!(adapter.descriptor().id, "local");
+    assert_eq!(
+        adapter.receive_ack_policy(),
+        crate::channel::ChannelReceiveAckPolicy::AfterReceiveRecord
+    );
+    adapter.stop().await.unwrap();
+    assert_eq!(adapter.descriptor().account_id.as_deref(), Some("host"));
+    assert!(sink.ids.lock().unwrap().is_empty());
+}

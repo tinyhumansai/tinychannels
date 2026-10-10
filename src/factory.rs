@@ -30,6 +30,7 @@
 //! channel, which is the wrong trade for a long-running messaging surface.
 
 use std::sync::Arc;
+use tinychannels_runtime::config::WhatsAppConfigExt as _;
 
 use crate::host::ChannelHost;
 use crate::providers::irc;

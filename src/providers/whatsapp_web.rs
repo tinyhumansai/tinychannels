@@ -61,7 +61,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 ///
 /// Wraps a `whatsapp-rust` Bot with our `Channel` trait. The bot owns an
 /// `Arc<Client>` for outbound operations (`send`, typing) and a `BotHandle`
-/// for shutdown. Inbound messages are pushed onto an [`mpsc::Sender`] so
+/// for shutdown. Inbound messages are pushed onto an [`tokio::sync::mpsc::Sender`] so
 /// the existing channel inbound subscriber pipeline can process them.
 #[cfg(feature = "whatsapp-web")]
 pub struct WhatsAppWebChannel {

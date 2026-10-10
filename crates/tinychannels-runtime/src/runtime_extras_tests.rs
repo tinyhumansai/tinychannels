@@ -4,8 +4,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
+use crate::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
-use tinychannels_bus::{Channel, ChannelMessage, SendMessage};
 
 use super::*;
 
@@ -100,7 +100,7 @@ async fn dispatch_loop_survives_a_panicking_handler() {
 fn runtime_message_keeps_envelope_only_when_given() {
     let plain = RuntimeChannelMessage::from(message("1"));
     assert!(plain.inbound_envelope.is_none());
-    let envelope = tinychannels_bus::inbound_envelope_from_legacy_message(&message("2"));
+    let envelope = crate::channel::inbound_envelope_from_legacy_message(&message("2"));
     let relayed = RuntimeChannelMessage::with_inbound_envelope(message("2"), envelope);
     assert!(relayed.inbound_envelope.is_some());
 }

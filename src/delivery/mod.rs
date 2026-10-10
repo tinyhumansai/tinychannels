@@ -1,4 +1,4 @@
-//! Outbound delivery: the durable queue, retry policy, and reply segmentation (the splitter itself lives in `tinychannels_bus::delivery`).
+//! Outbound delivery: the durable queue, retry policy, and reply segmentation (the splitter itself lives in `tinychannels_runtime::delivery`).
 
 pub mod policy;
 pub mod progressive;
@@ -16,8 +16,8 @@ pub use queue::{
     mark_delivery_platform_outcome_unknown, mark_delivery_platform_send_attempt_started,
     move_to_failed, recover_pending_deliveries,
 };
-pub use tinychannels_bus::delivery::segment;
-pub use tinychannels_bus::delivery::{segment_delay, segment_for_delivery};
+pub use tinychannels_runtime::delivery::segment;
+pub use tinychannels_runtime::delivery::{segment_delay, segment_for_delivery};
 pub use types::{
     ActiveDeliveryClaimResult, DeliveryAttemptFailure, DeliveryAttemptResult,
     DeliveryAttemptSuccess, DeliveryQueueError, DeliveryQueueHandler, DeliveryQueueStore,

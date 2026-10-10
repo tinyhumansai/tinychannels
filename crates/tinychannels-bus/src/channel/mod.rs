@@ -9,12 +9,8 @@ pub mod receipt;
 pub mod session;
 pub mod types;
 
-pub use crate::traits::{Channel, ChannelMessage, ChannelSendExt, SendMessage};
-pub use adapter::{
-    ChannelAdapter, ChannelDelete, ChannelDirectory, ChannelEdit, ChannelInboundSink,
-    ChannelReaction, ChannelReceiveAckPolicy, ChannelResolver, ChannelSetup, ChannelStreamingDraft,
-    ChannelTyping,
-};
+pub use crate::traits::{ChannelMessage, SendMessage};
+pub use adapter::ChannelReceiveAckPolicy;
 pub use capabilities::{
     CHANNEL_MESSAGE_ACTION_NAMES, ChannelPresentationCapabilities, ChannelStaticCapabilities,
     DurableFinalDeliveryCapability, DurableFinalDeliveryRequirementMap, LengthUnit,
@@ -22,28 +18,14 @@ pub use capabilities::{
 };
 pub use envelope::{
     AccessContext, ChannelInboundEnvelope, GroupAccessPolicy, InboundMediaPayload, MediaKind,
-    MediaReference, MentionGate, SenderDmDecision, inbound_envelope_from_legacy_message,
-    legacy_message_from_inbound_envelope,
+    MediaReference, MentionGate, SenderDmDecision,
 };
-pub use error::{ChannelSendError, SendErrorKind, classify_send_error, is_chat_level_not_found};
-pub use intent::{
-    ChannelOutboundIntent, DeliveryDurability, OutboundPayload,
-    legacy_message_value_from_outbound_intent, outbound_intent_from_legacy_message,
-    outbound_intent_from_send_message,
-};
+pub use error::{ChannelSendError, SendErrorKind};
+pub use intent::{ChannelOutboundIntent, DeliveryDurability, OutboundPayload};
 pub use receipt::{
     MessageReceipt, MessageReceiptPart, MessageReceiptPartKind, MessageReceiptSourceResult,
-    create_message_receipt_from_outbound_results, list_message_receipt_platform_ids,
-    resolve_message_receipt_primary_id,
 };
-pub use session::{
-    LegacySessionKeys, SessionKeyPolicy, build_session_key, build_session_key_for_inbound_envelope,
-    conversation_history_key_candidates, derive_inbound_client_id, derive_inbound_thread_id,
-};
+pub use session::{LegacySessionKeys, SessionKeyPolicy};
 pub use types::{
     ChannelDescriptor, ChannelRef, ConversationKind, ConversationRef, SecretRef, SenderRef,
 };
-
-#[cfg(test)]
-#[path = "mod_tests.rs"]
-mod test;

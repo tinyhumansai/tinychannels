@@ -656,3 +656,111 @@ fn empty_optional_fields_are_skipped() {
     let only_sender = derive_inbound_thread_id("discord", Some("alice"), Some("   "), None);
     assert_eq!(only_sender, "channel:discord/alice");
 }
+
+#[test]
+fn outbound_payload_variants_keep_legacy_and_relay_content() {
+    let cases = [
+        (
+            OutboundPayload::Text {
+                text: "hello".into(),
+            },
+            json!({"text":"hello"}),
+            "hello",
+        ),
+        (
+            OutboundPayload::Media {
+                text: Some("caption".into()),
+                media_urls: vec!["image".into()],
+            },
+            json!({"text":"caption","mediaUrls":["image"]}),
+            "caption",
+        ),
+        (
+            OutboundPayload::Voice {
+                media_url: "audio".into(),
+            },
+            json!({"voiceUrl":"audio"}),
+            "audio",
+        ),
+        (
+            OutboundPayload::Files {
+                file_urls: vec!["a".into(), "b".into()],
+            },
+            json!({"fileUrls":["a","b"]}),
+            "a\nb",
+        ),
+        (
+            OutboundPayload::Poll {
+                question: "choose".into(),
+                options: vec!["a".into()],
+            },
+            json!({"poll":{"question":"choose","options":["a"]}}),
+            "choose",
+        ),
+        (
+            OutboundPayload::PresentationBlocks {
+                blocks: json!([{"text":"block"}]),
+            },
+            json!({"blocks":[{"text":"block"}]}),
+            "",
+        ),
+        (
+            OutboundPayload::NativeChannelData {
+                data: json!({"text":"native","enabled":true,"count":2}),
+            },
+            json!({"text":"native","enabled":true,"count":2}),
+            "native",
+        ),
+    ];
+    for (payload, mut legacy, content) in cases {
+        let intent = ChannelOutboundIntent {
+            idempotency_key: "key".into(),
+            payload,
+            ..Default::default()
+        };
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .insert("idempotencyKey".into(), json!("key"));
+        assert_eq!(legacy_message_value_from_outbound_intent(&intent), legacy);
+        assert_eq!(
+            crate::relay::relay_send_action_from_outbound_intent(&intent)["content"],
+            content
+        );
+    }
+    let intent = outbound_intent_from_legacy_message("fixture", json!(true));
+    assert_eq!(
+        legacy_message_value_from_outbound_intent(&intent),
+        json!({"payload":true,"idempotencyKey":intent.idempotency_key})
+    );
+}
+
+#[test]
+fn nested_receipt_ids_recover_parts_and_delivery_time() {
+    let receipt = create_message_receipt_from_outbound_results(
+        vec![
+            MessageReceiptSourceResult {
+                receipt: Some(MessageReceipt {
+                    platform_message_ids: vec!["one".into(), "two".into()],
+                    sent_at: 42,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            MessageReceiptSourceResult::default(),
+        ],
+        Some(MessageReceiptPartKind::Media),
+        Some("thread".into()),
+        Some("reply".into()),
+        0,
+    );
+    assert_eq!(receipt.sent_at, 42);
+    assert_eq!(receipt.parts.len(), 2);
+    assert_eq!(receipt.parts[1].platform_message_id, "two");
+    assert_eq!(receipt.parts[1].thread_id.as_deref(), Some("thread"));
+    assert_eq!(receipt.parts[1].reply_to_id.as_deref(), Some("reply"));
+    assert_eq!(receipt.parts[1].kind, MessageReceiptPartKind::Media);
+    let empty = create_message_receipt_from_outbound_results(Vec::new(), None, None, None, 0);
+    assert_eq!(empty.sent_at, 0);
+    assert!(empty.parts.is_empty());
+}

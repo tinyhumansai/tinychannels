@@ -7,14 +7,15 @@ contract crate and an implementation crate:
 
 | Crate | Path | Holds |
 | --- | --- | --- |
-| `tinychannels-bus` | `crates/tinychannels-bus/` | The wire contract: envelopes, outbound intents, `ChannelsConfig`, controller metadata, relay frames + HMAC auth, pairing helpers, session-key rules, and the bus names in `src/names.rs`. Transport-free and dependency-light. |
+| `tinychannels-bus` | `crates/tinychannels-bus/` | The wire contract: envelopes, outbound intents, `ChannelsConfig`, controller metadata, relay frames and serialized policies, and the bus names in `src/names.rs`. Transport-free and dependency-light. |
+| `tinychannels-runtime` | `crates/tinychannels-runtime/` | Shared implementation seams and algorithms: callbacks, pairing/crypto, session/idempotency keys, context, relay auth/I/O, segmentation and configuration preparation. Re-exports bus DTOs. |
 | `tinychannels` | `.` (root) | The implementation: the provider stack (`src/providers/`), the relay transport loop, delivery, the `factory` that turns a `ChannelsConfig` into providers, and the host boundary. Depends on the contract crate and re-exports it whole. |
 | `tinychannels-module` | `crates/tinychannels-module/` | The loadable TinyBus `cdylib`. Serves `ai.tinyhumans.tinychannels.Channels` and calls the host's `ChannelsHost` object for inbound traffic. Private (`publish = false`); its output is the artifact attached to a release. |
 
 **The split is not cosmetic — put new code on the right side of it.** A type that
 crosses a boundary goes in the contract crate; anything that opens a socket,
 spawns a task or touches a database goes in the root crate. The root crate
-re-exports every contract module at the path it has always occupied
+re-exports contract DTOs and runtime implementation modules at the path it has always occupied
 (`tinychannels::channel::…`, `tinychannels::config::…`), so downstream paths keep
 resolving — but new code should prefer naming `tinychannels_bus` directly when
 it only needs the vocabulary.
@@ -84,7 +85,7 @@ APIs with `Result<T>` using the crate error type exported from `src/error.rs`.
 Keep public exports centralized in `src/lib.rs` so downstream users have a
 predictable surface.
 
-The `src/delivery/mod.rs` re-export of `tinychannels_bus::delivery::segment`
+The `src/delivery/mod.rs` re-export of `tinychannels_runtime::delivery::segment`
 is a scoped compatibility exception: it preserves the existing
 `tinychannels::delivery::segment` path. Keep this exception limited to that
 legacy path; new public exports still belong in `src/lib.rs`.
