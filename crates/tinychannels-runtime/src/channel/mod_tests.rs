@@ -3,7 +3,7 @@
 
 use super::*;
 use serde_json::json;
-use tinychannels_bus::ContentPart;
+use tinychannels_bus::{ContentPart, OutboundContentPart};
 
 #[test]
 fn durable_final_delivery_capabilities_match_openclaw_order() {
@@ -864,8 +864,10 @@ fn legacy_message_payload_replaces_a_blank_idempotency_key() {
 
 #[test]
 fn send_message_intent_preserves_legacy_typed_fields() {
-    let message = SendMessage::with_subject("hello", "alice", "subject")
+    let mut message = SendMessage::with_subject("hello", "alice", "subject")
         .in_thread(Some("thread-1".to_string()));
+    message.topic_id = Some("topic-2".into());
+    message.reply_to_id = Some("message-3".into());
     let intent = outbound_intent_from_send_message("discord", &message);
     let payload = legacy_message_value_from_outbound_intent(&intent);
 
@@ -876,6 +878,18 @@ fn send_message_intent_preserves_legacy_typed_fields() {
     assert_eq!(payload["recipient"], "alice");
     assert_eq!(payload["subject"], "subject");
     assert_eq!(payload["thread_ts"], "thread-1");
+    assert_eq!(intent.reply_to_id.as_deref(), Some("message-3"));
+    assert_eq!(
+        intent
+            .conversation_ref
+            .as_ref()
+            .unwrap()
+            .topic_id
+            .as_deref(),
+        Some("topic-2")
+    );
+    assert_eq!(payload["topicId"], "topic-2");
+    assert_eq!(payload["replyToId"], "message-3");
     assert_eq!(payload["idempotencyKey"], intent.idempotency_key);
 }
 
@@ -1019,6 +1033,18 @@ fn outbound_payload_variants_keep_legacy_and_relay_content() {
             "hello",
         ),
         (
+            OutboundPayload::Parts {
+                parts: vec![OutboundContentPart::Content {
+                    part: ContentPart::Text {
+                        text: "typed parts".into(),
+                        markdown_dialect: None,
+                    },
+                }],
+            },
+            json!({"parts":[{"kind":"content","part":{"kind":"text","text":"typed parts"}}]}),
+            "",
+        ),
+        (
             OutboundPayload::Media {
                 text: Some("caption".into()),
                 media_urls: vec!["image".into()],
@@ -1117,4 +1143,79 @@ fn nested_receipt_ids_recover_parts_and_delivery_time() {
     let empty = create_message_receipt_from_outbound_results(Vec::new(), None, None, None, 0);
     assert_eq!(empty.sent_at, 0);
     assert!(empty.parts.is_empty());
+}
+
+#[test]
+fn typed_text_parts_preserve_order_and_delivery_identity_without_flattening() {
+    let parts = ["first", "second"]
+        .into_iter()
+        .map(|text| OutboundContentPart::Content {
+            part: ContentPart::Text {
+                text: text.into(),
+                markdown_dialect: None,
+            },
+        })
+        .collect::<Vec<_>>();
+    let intent = ChannelOutboundIntent {
+        idempotency_key: "stable-key".into(),
+        turn_id: Some("turn-42".into()),
+        payload: OutboundPayload::Parts {
+            parts: parts.clone(),
+        },
+        ..Default::default()
+    };
+    let legacy = legacy_message_value_from_outbound_intent(&intent);
+    assert_eq!(legacy["parts"], serde_json::to_value(&parts).unwrap());
+    assert_eq!(legacy["idempotencyKey"], "stable-key");
+    assert_eq!(legacy["turnId"], "turn-42");
+    let typed = tinychannels_bus::ChannelOutboundMessage::from_intent(&intent);
+    assert_eq!(typed.parts, parts);
+    assert_eq!(typed.idempotency_key, "stable-key");
+    assert_eq!(typed.turn_id.as_deref(), Some("turn-42"));
+}
+
+#[test]
+fn typed_projection_keeps_non_text_parts_intact() {
+    let parts = vec![OutboundContentPart::Content {
+        part: ContentPart::Native {
+            provider: "fixture".into(),
+            data: json!({"text":"not portable text"}),
+        },
+    }];
+    let intent = ChannelOutboundIntent {
+        payload: OutboundPayload::Parts {
+            parts: parts.clone(),
+        },
+        ..Default::default()
+    };
+    let legacy = legacy_message_value_from_outbound_intent(&intent);
+    assert!(legacy.get("text").is_none());
+    assert_eq!(legacy["parts"], serde_json::to_value(&parts).unwrap());
+    assert_eq!(
+        tinychannels_bus::ChannelOutboundMessage::from_intent(&intent).parts,
+        parts
+    );
+}
+
+#[test]
+fn typed_inbound_projection_keeps_reply_thread_and_topic_distinct() {
+    let envelope = ChannelInboundEnvelope {
+        reply_to_id: Some("source-message".into()),
+        conversation: ConversationRef {
+            id: "chat".into(),
+            thread_id: Some("thread-id".into()),
+            topic_id: Some("topic-id".into()),
+            ..Default::default()
+        },
+        parts: vec![ContentPart::Text {
+            text: "typed text".into(),
+            markdown_dialect: None,
+        }],
+        ..Default::default()
+    };
+    let projected = typed_message_from_inbound_envelope(&envelope, 42);
+    assert_eq!(projected.content, "typed text");
+    assert_eq!(projected.reply_to_id.as_deref(), Some("source-message"));
+    assert_eq!(projected.thread_ts.as_deref(), Some("thread-id"));
+    assert_eq!(projected.topic_id.as_deref(), Some("topic-id"));
 }

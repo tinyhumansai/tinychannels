@@ -79,9 +79,9 @@ pub fn outbound_intent_from_send_message(
 
 /// Render an outbound intent back to the legacy backend message payload.
 ///
-/// This keeps the old JSON shape for native channel data and inserts
-/// `idempotencyKey` when the payload did not already carry either camelCase or
-/// snake_case idempotency.
+/// This keeps the old JSON shape for native channel data and preserves ordered
+/// typed parts without flattening them. It inserts `idempotencyKey` when the
+/// payload did not already carry either camelCase or snake_case idempotency.
 pub fn legacy_message_value_from_outbound_intent(intent: &ChannelOutboundIntent) -> Value {
     let payload = match &intent.payload {
         OutboundPayload::Text { text } => serde_json::json!({ "text": text }),

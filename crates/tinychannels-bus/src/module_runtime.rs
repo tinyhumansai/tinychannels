@@ -36,6 +36,35 @@ pub struct ChannelRuntimeReservation {
     pub host_object_path: String,
 }
 
+impl ChannelRuntimeReservation {
+    /// Check that the opaque handle and both private callback paths agree with
+    /// the TinyChannels bus contract.
+    ///
+    /// The error is deliberately content-free so callers can report it without
+    /// exposing a supplied handle or object path.
+    pub fn validate(&self) -> crate::Result<()> {
+        const INVALID: &str = "invalid channel runtime reservation";
+
+        if self.handle.len() != 32
+            || !self
+                .handle
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return Err(crate::TinyChannelsError::new(INVALID));
+        }
+
+        let runtime_suffix = format!("/runtime_{}", self.handle);
+        if self.object_path != format!("{}{}", crate::OBJECT_PATH, runtime_suffix)
+            || self.host_object_path != format!("{}{}", crate::HOST_OBJECT_PATH, runtime_suffix)
+        {
+            return Err(crate::TinyChannelsError::new(INVALID));
+        }
+
+        Ok(())
+    }
+}
+
 /// Opt-in turn dispatch for a reserved runtime. Legacy `StartRuntime` retains
 /// serial `DeliverInbound` envelope notifications; this policy uses `ProcessInbound`
 /// callbacks with module-owned bounded concurrency and stop/drain ownership.
@@ -82,7 +111,7 @@ pub enum ChannelMessagePreparation {
     /// Preserve the existing typed channel send and its idempotency algorithm.
     Typed(crate::SendMessage),
     /// Render an already prepared intent without changing its key or durability.
-    Intent(crate::ChannelOutboundIntent),
+    Intent(Box<crate::ChannelOutboundIntent>),
 }
 
 /// An intent and the corresponding legacy backend JSON prepared inside the module.

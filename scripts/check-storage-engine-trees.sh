@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-blocked='^(rusqlite|libsqlite3-sys|mongodb|bson|aws-sdk-s3|lapin|amq-protocol|sqlx|redb|sled|rocksdb|tinystoragedrivers-(document|kv|blob|queue|secrets|connect)|tinystoragedrivers)$'
+blocked='^(rusqlite|libsqlite3-sys|mongodb|bson|aws-sdk-s3|lapin|amq-protocol|sqlx|redb|sled|rocksdb|tinystoragedrivers-(core|file|mongodb|s3|sqlite|document|kv|blob|queue|secrets|connect)|tinystoragedrivers)$'
 
 check_tree() {
   package="$1"
@@ -13,9 +13,10 @@ check_tree() {
   offender="$(printf '%s\n' "$names" | grep -Ex "$blocked" || true)"
   if [[ -n "$offender" ]]; then
     # SQLite is the one deliberate feature exception: the implementation's
-    # opt-in iMessage reader uses rusqlite. Keep it confined to that package
-    # and verify the no-default-features build below remains SQLite-free.
-    if [[ "$package" == "tinychannels" && "${ALLOW_IMESSAGE_SQLITE:-0}" == 1 ]]; then
+    # opt-in iMessage reader uses rusqlite and ships in the module artifact.
+    # Confine it to those implementations; the library's no-default-features
+    # build below must remain SQLite-free.
+    if [[ ( "$package" == "tinychannels" || "$package" == "tinychannels-module" ) && "${ALLOW_IMESSAGE_SQLITE:-0}" == 1 ]]; then
       offender="$(printf '%s\n' "$offender" | grep -Ev '^(rusqlite|libsqlite3-sys)$' || true)"
     fi
   fi
@@ -74,6 +75,21 @@ if [[ "${1:-}" == "--self-test" ]]; then
     printf 'self-test failed: the SQLite exception accepted an unrelated offender\n' >&2
     exit 1
   fi
+  for engine in core file mongodb s3 sqlite; do
+    if check_tree tinychannels "$(printf 'tinychannels\ntinystoragedrivers-%s\n' "$engine")"; then
+      printf 'self-test failed: TSD implementation %s was accepted\n' "$engine" >&2
+      exit 1
+    fi
+  done
+  ALLOW_IMESSAGE_SQLITE=1 check_tree tinychannels-module $'tinychannels-module\nrusqlite\nlibsqlite3-sys'
+  if ALLOW_IMESSAGE_SQLITE=1 check_tree tinychannels-module $'tinychannels-module\nrusqlite\ntinystoragedrivers-sqlite'; then
+    printf 'self-test failed: module iMessage exception accepted a storage engine\n' >&2
+    exit 1
+  fi
+  if ALLOW_IMESSAGE_SQLITE=1 check_tree tinychannels-bus $'tinychannels-bus\nrusqlite'; then
+    printf 'self-test failed: iMessage exception escaped to the bus contract\n' >&2
+    exit 1
+  fi
   metadata='{"workspace_members":["lib-id","rlib-id","dylib-id","cdylib-id","staticlib-id","proc-macro-id","binary-id"],"packages":[{"id":"lib-id","name":"lib-only","targets":[{"kind":["lib"]}]},{"id":"rlib-id","name":"rlib-only","targets":[{"kind":["rlib"]}]},{"id":"dylib-id","name":"dylib-only","targets":[{"kind":["dylib"]}]},{"id":"cdylib-id","name":"cdylib-only","targets":[{"kind":["cdylib"]}]},{"id":"staticlib-id","name":"staticlib-only","targets":[{"kind":["staticlib"]}]},{"id":"proc-macro-id","name":"proc-macro-only","targets":[{"kind":["proc-macro"]}]},{"id":"binary-id","name":"binary-only","targets":[{"kind":["bin"]}]},{"id":"external-id","name":"external-dylib","targets":[{"kind":["dylib"]}]}]}'
   selected="$(printf '%s' "$metadata" | library_packages)"
   expected=$'lib-only\nrlib-only\ndylib-only\ncdylib-only\nstaticlib-only\nproc-macro-only'
@@ -113,6 +129,8 @@ while IFS= read -r package; do
       exit 1
     fi
     check_tree "$package" "$default_names"
+  elif [[ "$package" == "tinychannels-module" ]]; then
+    ALLOW_IMESSAGE_SQLITE=1 check_tree "$package" "$names"
   else
     check_tree "$package" "$names"
   fi

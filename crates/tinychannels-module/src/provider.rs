@@ -1173,7 +1173,7 @@ impl Running {
                                         drafts.as_ref(),
                                         &configured_instance,
                                         previous,
-                                        intent,
+                                        *intent,
                                     )
                                     .await
                                 }

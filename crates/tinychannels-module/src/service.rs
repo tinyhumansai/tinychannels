@@ -34,6 +34,7 @@
 //! `tinychannels::factory`. This module has no keyring and cannot resolve a
 //! placeholder.
 
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tinychannels::config::WhatsAppConfigExt as _;
@@ -42,7 +43,7 @@ use crate::delivery::HostDeliveryStore;
 use crate::provider::{Hooks, Running, RunningSendError};
 use crate::relay::Relays;
 use std::sync::atomic::{AtomicBool, Ordering};
-use tinybus::{Connection, Error as BusError, Result as BusResult};
+use tinybus::{BusName, Connection, Error as BusError, Result as BusResult};
 use tinychannels::delivery::{
     DeliveryAttemptFailure, DeliveryAttemptResult, DeliveryAttemptSuccess, DeliveryQueueError,
     DeliveryQueueHandler, DeliveryQueueStore, DeliveryResultStore, PendingDeliveryDrainDecision,
@@ -715,10 +716,11 @@ impl Channels {
         &self,
         request: tinychannels_bus::BeginWebTurn,
     ) -> BusResult<tinychannels_bus::WebTurnHandle> {
+        let mut web_turns = self.web_turns.lock().await;
         if self.terminal.load(Ordering::Acquire) {
             return Err(BusError::failed("channel module is shutting down"));
         }
-        self.web_turns.lock().await.begin(request)
+        web_turns.begin(request)
     }
 
     /// Project one canonical provider output through the active web turn.
@@ -727,10 +729,11 @@ impl Channels {
         &self,
         request: tinychannels_bus::ProjectWebOutput,
     ) -> BusResult<tinychannels_bus::WebOutputEvents> {
+        let mut web_turns = self.web_turns.lock().await;
         if self.terminal.load(Ordering::Acquire) {
             return Err(BusError::failed("channel module is shutting down"));
         }
-        self.web_turns.lock().await.project(request)
+        web_turns.project(request)
     }
 
     /// End one web turn and release its bounded projection state.
@@ -822,7 +825,7 @@ impl Channels {
                 }
                 let message = match request.preparation_mode {
                     tinychannels_bus::module_inbound::ChannelInboundPreparationMode::LegacyText => {
-                        message
+                        *message
                     }
                     tinychannels_bus::module_inbound::ChannelInboundPreparationMode::Typed => {
                         tinychannels::typed_message_from_inbound_envelope(
@@ -946,7 +949,7 @@ impl Channels {
                         "intent destination does not match channel",
                     ));
                 }
-                intent
+                *intent
             }
         };
         Ok(PreparedChannelIntent {
@@ -1771,17 +1774,71 @@ async fn finish_start_admission(
     Ok(())
 }
 
-async fn setup(connection: Connection) -> BusResult<()> {
-    let host = HostChannels::new(connection.clone());
-    let channels = Channels::new(
-        host,
-        Some(Arc::new(crate::runtime::Runtimes::new(connection.clone()))),
-    );
-    connection
-        .serve_at(OBJECT_PATH.try_into()?, channels)
-        .await?;
+#[derive(Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct StorageSetupOptions {
+    storage_callback: Option<BusName>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum ModuleSetupConfig {
+    Null(()),
+    Options(StorageSetupOptions),
+}
+
+impl ModuleSetupConfig {
+    fn storage_callback(self) -> BusResult<Option<BusName>> {
+        match self {
+            Self::Null(()) => Ok(None),
+            Self::Options(options) => match options.storage_callback {
+                Some(destination) if !destination.is_unique() => Err(BusError::failed(
+                    "storage callback destination must be unique",
+                )),
+                destination => Ok(destination),
+            },
+        }
+    }
+}
+
+async fn setup_with_storage_callback(
+    connection: Connection,
+    storage_callback: Option<BusName>,
+) -> BusResult<()> {
+    // Storage callbacks identify the module by its well-known name.
     connection.request_name(BUS_NAME).await?;
-    Ok(())
+    let host =
+        HostChannels::new_with_storage_callback(connection.clone(), storage_callback.clone());
+    // Storage belongs to the host's invocation scope, which may not exist at
+    // module boot. HostChannels resolves this exact callback lazily and still
+    // refuses storage operations if it is unavailable, without a fallback.
+    let channels = Channels::new(
+        host.clone(),
+        Some(Arc::new(
+            crate::runtime::Runtimes::new_with_storage_callback(
+                connection.clone(),
+                storage_callback,
+            ),
+        )),
+    );
+    let result = async {
+        connection
+            .serve_at(OBJECT_PATH.try_into()?, channels)
+            .await?;
+        Ok(())
+    }
+    .await;
+    if result.is_err() {
+        let _ = host.shutdown().await;
+    }
+    result
+}
+
+async fn setup_with_context(
+    context: tinybus_module::ModuleSetupContext,
+    config: ModuleSetupConfig,
+) -> BusResult<()> {
+    setup_with_storage_callback(context.connection().clone(), config.storage_callback()?).await
 }
 
 fn intent_fingerprint(intent: &ChannelOutboundIntent) -> Result<String, serde_json::Error> {
@@ -1832,9 +1889,12 @@ pub(crate) mod exports {
     macro_rules! export_channels_module {
         ($($extra_method:literal),* $(,)?) => {
             tinybus_module::module_export_optional_static! {
-        setup = super::setup,
+        setup_with_context = super::setup_with_context,
+        config = super::ModuleSetupConfig,
         worker_threads = 4,
-        provides = ["ai.tinyhumans.tinychannels.Channels"],
+        provides = [
+            "ai.tinyhumans.tinychannels.Channels",
+        ],
         methods = [
             "StartChannel",
             "StopChannel",

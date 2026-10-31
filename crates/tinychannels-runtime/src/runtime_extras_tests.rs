@@ -16,9 +16,9 @@ fn message(id: &str) -> tinychannels_bus::ChannelMessage {
         content: "hi".into(),
         channel: "test".into(),
         timestamp: 0,
+        thread_ts: None,
         topic_id: None,
         reply_to_id: None,
-        thread_ts: None,
         sender_name: None,
     }
 }

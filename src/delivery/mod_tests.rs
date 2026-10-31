@@ -663,6 +663,7 @@ fn payload_shape_maps_to_expected_durable_capability() {
             },
             Payload,
         ),
+        (OutboundPayload::Parts { parts: vec![] }, Payload),
     ];
 
     for (payload, expected) in cases {

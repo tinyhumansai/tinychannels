@@ -250,6 +250,8 @@ async fn listen_delivers_only_allowed_non_blank_messages() {
     assert_eq!(first.conversation.id, "+15555550123");
     assert_eq!(first.text, "hello");
     assert_eq!(first.channel.id, "imessage");
+    assert_eq!(first.conversation.topic_id, None);
+    assert_eq!(first.reply_to_id, None);
     assert_ne!(
         first.message_id, "1",
         "rows before startup are never replayed"

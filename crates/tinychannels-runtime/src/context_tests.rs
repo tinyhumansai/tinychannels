@@ -24,9 +24,9 @@ fn message(channel: &str, sender: &str, reply_target: &str) -> ChannelMessage {
         content: "hello".into(),
         channel: channel.into(),
         timestamp: 123,
+        thread_ts: None,
         topic_id: None,
         reply_to_id: None,
-        thread_ts: None,
         sender_name: None,
     }
 }

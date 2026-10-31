@@ -9,4 +9,5 @@ pub mod schema;
 
 pub use records::ChatBinding;
 pub use schema::collections;
+pub use schema::{CollectionSpec, IndexSpec, SearchSpec};
 pub use schema::{MEDIA_BLOB_PREFIX, MEDIA_METADATA, media_metadata_spec};

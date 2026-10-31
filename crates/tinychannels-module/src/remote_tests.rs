@@ -89,7 +89,9 @@ impl Callback {
         Ok(ChannelBackendResult::RemoteControl(result))
     }
 }
-async fn fixture(_workspace: &std::path::Path) -> (HostChannels, Callback) {
+async fn fixture(
+    _workspace: &std::path::Path,
+) -> (HostChannels, Callback, crate::storage_fixture::StorageHost) {
     let bus = MemoryBus::new();
     Broker::new().spawn(bus.clone());
     let connection = tinybus::Connection::connect(bus.connect().await.unwrap())
@@ -113,23 +115,27 @@ async fn fixture(_workspace: &std::path::Path) -> (HostChannels, Callback) {
         )
         .await
         .unwrap();
-    (HostChannels::new(connection), callback)
+    let host = HostChannels::new(connection);
+    host.storage()
+        .await
+        .unwrap_or_else(|error| panic!("remote fixture storage must connect: {error:?}"));
+    (host, callback, storage)
 }
 fn command(workspace: &std::path::Path, content: &str, channel: &str) -> RemoteOperation {
     RemoteOperation::Execute {
         workspace_dir: workspace.to_str().unwrap().into(),
-        message: tinychannels_bus::ChannelMessage {
+        message: Box::new(tinychannels_bus::ChannelMessage {
             id: "fixture".into(),
             sender: "sender".into(),
             reply_target: "chat".into(),
             content: content.into(),
             channel: channel.into(),
             timestamp: 1,
-            topic_id: None,
-            reply_to_id: None,
             thread_ts: None,
             sender_name: None,
-        },
+            topic_id: None,
+            reply_to_id: None,
+        }),
         route: RemoteRoute {
             provider: "fixture-provider".into(),
             model: "fixture-model".into(),
@@ -155,11 +161,15 @@ fn scope() -> tinychannels_bus::module_remote::RemoteSessionScope {
 #[tokio::test]
 async fn new_command_awaits_host_history_clear_before_persisting_binding() {
     let workspace = tempfile::tempdir().unwrap();
-    let (host, callback) = fixture(workspace.path()).await;
+    let (host, callback, _storage) = fixture(workspace.path()).await;
     let result = execute(&host, command(workspace.path(), "/new", "telegram"))
         .await
         .unwrap();
-    assert!(result.reply.unwrap().contains("Started new session"));
+    let reply = result.reply.unwrap();
+    assert!(
+        reply.contains("Started new session"),
+        "unexpected `/new` reply: {reply}"
+    );
     assert_eq!(
         *callback.calls.lock().await,
         vec!["create", "clear", "invalidate"]
@@ -177,7 +187,7 @@ async fn new_command_awaits_host_history_clear_before_persisting_binding() {
 #[tokio::test]
 async fn new_without_prepared_session_scope_never_calls_host_clear() {
     let workspace = tempfile::tempdir().unwrap();
-    let (host, callback) = fixture(workspace.path()).await;
+    let (host, callback, _storage) = fixture(workspace.path()).await;
     let mut request = command(workspace.path(), "/new", "telegram");
     let RemoteOperation::Execute { session_scope, .. } = &mut request else {
         unreachable!()
@@ -197,7 +207,7 @@ async fn new_without_prepared_session_scope_never_calls_host_clear() {
 #[tokio::test]
 async fn sessions_are_sorted_and_turn_state_is_owned_by_the_module() {
     let workspace = tempfile::tempdir().unwrap();
-    let (host, callback) = fixture(workspace.path()).await;
+    let (host, callback, _storage) = fixture(workspace.path()).await;
     execute(
         &host,
         RemoteOperation::MarkTurn {
@@ -214,7 +224,10 @@ async fn sessions_are_sorted_and_turn_state_is_owned_by_the_module() {
         .unwrap()
         .reply
         .unwrap();
-    assert!(status.contains("in progress"));
+    assert!(
+        status.contains("in progress"),
+        "busy turn was not rendered: {status}"
+    );
     let text = execute(&host, command(workspace.path(), "/sessions", "telegram"))
         .await
         .unwrap()
@@ -227,7 +240,7 @@ async fn sessions_are_sorted_and_turn_state_is_owned_by_the_module() {
 #[tokio::test]
 async fn ordinary_messages_and_unsupported_channels_do_not_call_host_state() {
     let workspace = tempfile::tempdir().unwrap();
-    let (host, callback) = fixture(workspace.path()).await;
+    let (host, callback, _storage) = fixture(workspace.path()).await;
     for (text, channel) in [("ordinary message", "telegram"), ("/new", "email")] {
         assert_eq!(
             execute(&host, command(workspace.path(), text, channel))
@@ -254,7 +267,7 @@ async fn legacy_workspace_bindings_are_imported_once_and_left_untouched() {
     })
     .to_string();
     std::fs::write(&legacy, &body).unwrap();
-    let (host, _callback) = fixture(workspace.path()).await;
+    let (host, _callback, _storage) = fixture(workspace.path()).await;
     let status = execute(&host, command(workspace.path(), "/status", "telegram"))
         .await
         .unwrap()

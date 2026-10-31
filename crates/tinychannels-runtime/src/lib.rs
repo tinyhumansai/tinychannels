@@ -150,3 +150,6 @@ pub mod config;
 #[cfg(test)]
 #[path = "relocation_tests.rs"]
 mod relocation_tests;
+
+/// Projection of portable channel output onto the deployed web event wire.
+pub mod web;

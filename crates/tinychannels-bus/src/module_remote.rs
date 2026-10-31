@@ -54,7 +54,7 @@ pub struct RemoteSessionScope {
 pub enum RemoteOperation {
     Execute {
         workspace_dir: String,
-        message: crate::ChannelMessage,
+        message: Box<crate::ChannelMessage>,
         route: RemoteRoute,
         history_len: usize,
         session_scope: Option<RemoteSessionScope>,

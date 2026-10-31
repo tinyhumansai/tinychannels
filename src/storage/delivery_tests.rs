@@ -40,6 +40,46 @@ fn result(id: &str, completed_at: u64) -> DeliveryTerminalResult {
 }
 
 #[tokio::test]
+async fn durable_delivery_preserves_account_conversation_and_turn_identity() {
+    let store = DocumentDeliveryStore::new(docs());
+    let mut queued = entry("scoped-delivery", 1);
+    queued.intent.channel_ref = Some(tinychannels_bus::ChannelRef {
+        id: "telegram".into(),
+        account_id: Some("telegram:fixture".into()),
+    });
+    queued.intent.conversation_ref = Some(tinychannels_bus::ConversationRef {
+        id: "room".into(),
+        thread_id: Some("topic".into()),
+        ..Default::default()
+    });
+    queued.intent.turn_id = Some("cron-run".into());
+    store.save_pending(queued.clone()).await.unwrap();
+
+    assert_eq!(
+        store.load_pending("scoped-delivery").await.unwrap(),
+        Some(queued)
+    );
+}
+
+#[tokio::test]
+async fn prepared_storage_delivers_without_repeating_schema_mutations() {
+    use tinystoragedrivers_testkit::{Failing, FaultPlan};
+
+    let documents = docs();
+    crate::storage::prepare(&documents).await.unwrap();
+    let faults = FaultPlan::new();
+    faults.fail_operation_nth("documents.ensure_collection", 1, ErrorKind::Unavailable);
+    let documents: Arc<dyn DocumentStore> = Arc::new(Failing::with_plan(documents, faults));
+    let store = DocumentDeliveryStore::from_prepared(documents);
+
+    store.save_pending(entry("host-prepared", 1)).await.unwrap();
+    assert_eq!(
+        store.load_pending("host-prepared").await.unwrap(),
+        Some(entry("host-prepared", 1))
+    );
+}
+
+#[tokio::test]
 async fn pending_records_round_trip_in_enqueue_order() {
     let store = DocumentDeliveryStore::new(docs());
     store.save_pending(entry("b", 20)).await.unwrap();

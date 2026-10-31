@@ -34,7 +34,10 @@ use tinystoragedrivers_types::{
     WriteOptions,
 };
 
-use super::records::{StoredDelivery, StoredResult, to_stored_ms};
+use super::records::{
+    StoredDelivery, StoredResult, queued_from_stored_delivery, stored_delivery_from_queued,
+    stored_result_from_terminal, terminal_result_from_stored, to_stored_ms,
+};
 use super::schema::{self, SCHEMA_VERSION};
 use crate::delivery::{
     DeliveryQueueError, DeliveryQueueStore, DeliveryResultStore, QueuedDelivery,
@@ -73,6 +76,16 @@ impl DocumentDeliveryStore {
         Self {
             docs,
             ready: Arc::new(tokio::sync::OnceCell::new()),
+        }
+    }
+
+    /// Use an owner-bound handle whose schema and legacy import are already
+    /// prepared by the caller. Module callback ports cannot mutate schemas.
+    #[must_use]
+    pub fn from_prepared(docs: Arc<dyn DocumentStore>) -> Self {
+        Self {
+            docs,
+            ready: Arc::new(tokio::sync::OnceCell::new_with(Some(()))),
         }
     }
 
@@ -139,7 +152,7 @@ fn write_options() -> WriteOptions {
 
 fn decode_entry(found: Versioned<Value>) -> Result<QueuedDelivery, DeliveryQueueError> {
     let entry = match serde_json::from_value::<StoredDelivery>(found.doc.clone()) {
-        Ok(stored) => QueuedDelivery::from(stored),
+        Ok(stored) => queued_from_stored_delivery(stored),
         Err(_) => serde_json::from_value::<QueuedDelivery>(found.doc)
             .map_err(|_| invalid("stored delivery record is unreadable"))?,
     };
@@ -154,7 +167,7 @@ fn decode_entry(found: Versioned<Value>) -> Result<QueuedDelivery, DeliveryQueue
 }
 
 fn encode_entry(entry: &QueuedDelivery) -> Result<Value, DeliveryQueueError> {
-    serde_json::to_value(StoredDelivery::from(entry))
+    serde_json::to_value(stored_delivery_from_queued(entry))
         .map_err(|_| invalid("delivery record could not be encoded"))
 }
 
@@ -312,7 +325,7 @@ impl DeliveryResultStore for DocumentDeliveryStore {
         if doc_id(&record.id).ok().as_deref() != Some(found.id.as_str()) {
             return Err(invalid("stored delivery result is unreadable"));
         }
-        Ok(Some(record.into()))
+        Ok(Some(terminal_result_from_stored(record)))
     }
 
     async fn save_result(&self, result: DeliveryTerminalResult) -> Result<(), DeliveryQueueError> {
@@ -327,7 +340,7 @@ impl DeliveryResultStore for DocumentDeliveryStore {
                 .saturating_add(DELIVERY_RESULT_TTL_SECONDS.saturating_mul(1000)),
         );
         let id = doc_id(&result.id)?;
-        let doc = serde_json::to_value(StoredResult::from(&result))
+        let doc = serde_json::to_value(stored_result_from_terminal(&result))
             .map_err(|_| invalid("result could not be encoded"))?;
         docs.put_with(
             RESULTS_COLLECTION,

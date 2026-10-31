@@ -46,6 +46,64 @@ async fn send_draft_posts_placeholder_and_returns_message_id() {
 }
 
 #[tokio::test]
+async fn send_uses_separate_topic_and_reply_ids() {
+    let server = mock_api().await;
+    mount_post(&server, "sendMessage", ok()).await;
+    let ch = channel_for(&server, &["*"]);
+    let mut message = SendMessage::new("hello", "100");
+    message.topic_id = Some("7".into());
+    message.thread_ts = Some("55".into());
+    message.reply_to_id = Some("56".into());
+
+    ch.send_compat_message(&message).await.unwrap();
+
+    assert_eq!(
+        json_bodies(&server, "sendMessage").await,
+        vec![serde_json::json!({
+            "chat_id": "100",
+            "text": "hello",
+            "parse_mode": "MarkdownV2",
+            "message_thread_id": "7",
+            "reply_to_message_id": 56,
+        })]
+    );
+}
+
+#[tokio::test]
+async fn send_draft_prefers_explicit_topic_and_reply_ids() {
+    let server = mock_api().await;
+    mount_post(
+        &server,
+        "sendMessage",
+        ok_with(serde_json::json!({ "message_id": 323 })),
+    )
+    .await;
+    let channel = streaming(&server);
+    let mut message = SendMessage::new("thinking", "100:8");
+    message.topic_id = Some("7".into());
+    message.thread_ts = Some("55".into());
+    message.reply_to_id = Some("56".into());
+
+    assert_eq!(
+        channel
+            .send_draft_provider(&message)
+            .await
+            .unwrap()
+            .as_deref(),
+        Some("323")
+    );
+    assert_eq!(
+        json_bodies(&server, "sendMessage").await,
+        vec![serde_json::json!({
+            "chat_id": "100",
+            "text": "thinking",
+            "message_thread_id": "7",
+            "reply_to_message_id": 56,
+        })]
+    );
+}
+
+#[tokio::test]
 async fn send_draft_without_message_id_in_result_returns_none() {
     let server = mock_api().await;
     mount_post(&server, "sendMessage", ok_with(serde_json::json!({}))).await;

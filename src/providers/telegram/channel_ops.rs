@@ -1588,8 +1588,17 @@ impl TelegramChannel {
             return Ok(None);
         }
 
-        let (chat_id, thread_id) = Self::parse_reply_target(&message.recipient);
-        let parent_message_id = Self::parse_message_id(message.thread_ts.as_deref());
+        let (chat_id, recipient_thread_id) = Self::parse_reply_target(&message.recipient);
+        let thread_id = message
+            .topic_id
+            .as_deref()
+            .or(recipient_thread_id.as_deref());
+        let parent_message_id = Self::parse_message_id(
+            message
+                .reply_to_id
+                .as_deref()
+                .or(message.thread_ts.as_deref()),
+        );
         let initial_text = if message.content.is_empty() {
             "...".to_string()
         } else {

@@ -1,0 +1,12 @@
+[workspace]
+resolver = "3"
+
+[package]
+name = "tinychannels-storage-needs-consumer"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+publish = false
+
+[dependencies]
+tinychannels-bus = { path = "../../crates/tinychannels-bus", features = ["storage"] }

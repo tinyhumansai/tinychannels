@@ -157,7 +157,7 @@ fn project_event(ctx: &WebEventContext, event: ChannelOutputEvent) -> Option<Vec
             context,
             tool_name: Some(tool_name),
             skill_id: None,
-            output: Some(output),
+            output: Some(cap_web_output(output)),
             args: arguments,
             success: Some(success),
             round: Some(iteration),

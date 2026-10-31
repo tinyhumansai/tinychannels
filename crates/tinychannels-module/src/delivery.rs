@@ -35,7 +35,7 @@ impl HostDeliveryStore {
                 self.host
                     .documents()
                     .await
-                    .map(DocumentDeliveryStore::new)
+                    .map(DocumentDeliveryStore::from_prepared)
                     .map_err(storage_error)
             })
             .await

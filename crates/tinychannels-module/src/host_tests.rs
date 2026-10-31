@@ -3,6 +3,43 @@ use std::sync::atomic::AtomicUsize;
 use tinybus::broker::Broker;
 use tinybus::transport::memory::MemoryBus;
 
+#[tokio::test]
+async fn callback_storage_reuses_the_schema_owned_by_the_host() {
+    use tinystoragedrivers_api::StorageBackend;
+    use tinystoragedrivers_testkit::{Failing, FaultPlan, MemoryBackend};
+    use tinystoragedrivers_types::{ErrorKind, Scope};
+
+    let bus = MemoryBus::new();
+    Broker::new().spawn(bus.clone());
+    let connection = Connection::connect(bus.connect().await.unwrap())
+        .await
+        .unwrap();
+    let backend = MemoryBackend::new();
+    let storage = backend
+        .for_scope(&Scope::new("tenant:schema-owner").unwrap())
+        .unwrap();
+    let faults = FaultPlan::new();
+    faults.fail_operation_nth("documents.ensure_collection", 1, ErrorKind::Unavailable);
+    let documents: Arc<dyn tinystoragedrivers_api::DocumentStore> =
+        Arc::new(Failing::with_plan(Arc::clone(storage.documents()), faults));
+    let callback = HostChannels::new_with_storage_callback(
+        connection.clone(),
+        Some(":1.999".try_into().unwrap()),
+    );
+    callback
+        .prepare_storage_schema(&documents)
+        .await
+        .expect("callback clients must reuse the schema declared by the host");
+
+    let legacy = HostChannels::new(connection);
+    assert!(
+        legacy.prepare_storage_schema(&documents).await.is_err(),
+        "the standalone legacy client still prepares its own schema"
+    );
+    callback.shutdown().await.unwrap();
+    legacy.shutdown().await.unwrap();
+}
+
 fn consume_failure(counter: &AtomicUsize) -> bool {
     let mut remaining = counter.load(Ordering::SeqCst);
     loop {
@@ -1642,5 +1679,37 @@ async fn module_voice_store_reads_back_what_it_stored_for_the_same_scope() {
     let mut other_turn = scope;
     other_turn.turn_id = "another-turn".into();
     assert!(store.read_voice(other_turn, opaque).await.is_err());
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn invalid_bound_storage_callback_never_falls_back_to_legacy_storage() {
+    let bus = MemoryBus::new();
+    Broker::new().spawn(bus.clone());
+    let connection = Connection::connect(bus.connect().await.unwrap())
+        .await
+        .unwrap();
+    let _legacy = crate::storage_fixture::StorageHost::serve(&connection, "legacy-fallback").await;
+    let destination: tinybus::BusName = ":1.999".try_into().unwrap();
+    let host = HostChannels::new_with_storage_callback(connection, Some(destination));
+
+    assert!(
+        host.storage().await.is_err(),
+        "a configured but invalid callback route must fail even when legacy storage is available"
+    );
+    host.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn host_debug_view_does_not_expose_callback_state() {
+    let bus = MemoryBus::new();
+    Broker::new().spawn(bus.clone());
+    let connection = Connection::connect(bus.connect().await.unwrap())
+        .await
+        .unwrap();
+    let host = HostChannels::new(connection);
+
+    assert_eq!(format!("{host:?}"), "HostChannels { .. }");
+
     host.shutdown().await.unwrap();
 }

@@ -143,3 +143,7 @@ pub struct ChannelReaction {
     /// Provider-specific stable custom-emoji identity.
     pub custom_emoji_id: Option<String>,
 }
+
+#[cfg(test)]
+#[path = "event_tests.rs"]
+mod tests;

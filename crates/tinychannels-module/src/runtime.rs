@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use tinybus::{Connection, Error, Result};
+use tinybus::{BusName, Connection, Error, Result};
 use tinychannels_bus::{ChannelRuntimeReservation, HOST_OBJECT_PATH, OBJECT_PATH};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -29,14 +29,24 @@ struct Slot {
 /// Owns separate provider, relay and delivery resources for each host identity.
 pub(crate) struct Runtimes {
     connection: Connection,
+    storage_callback: Option<BusName>,
     terminal: AtomicBool,
     slots: Mutex<HashMap<String, Arc<Slot>>>,
 }
 
 impl Runtimes {
+    #[cfg(test)]
     pub(crate) fn new(connection: Connection) -> Self {
+        Self::new_with_storage_callback(connection, None)
+    }
+
+    pub(crate) fn new_with_storage_callback(
+        connection: Connection,
+        storage_callback: Option<BusName>,
+    ) -> Self {
         Self {
             connection,
+            storage_callback,
             terminal: AtomicBool::new(false),
             slots: Mutex::new(HashMap::new()),
         }
@@ -137,17 +147,20 @@ impl Runtimes {
             slot.activated.store(true, Ordering::SeqCst);
             drop(slots);
             let connection = self.connection.clone();
+            let storage_callback = self.storage_callback.clone();
             let owned = slot.clone();
             *worker = Some(tokio::spawn(async move {
                 let host = match limit {
-                    Some(limit) => HostChannels::new_at_with_dispatch(
+                    Some(limit) => HostChannels::new_at_with_dispatch_and_storage_callback(
                         connection.clone(),
                         owned.reservation.host_object_path.clone(),
                         limit,
+                        storage_callback,
                     ),
-                    None => HostChannels::new_at(
+                    None => HostChannels::new_at_with_storage_callback(
                         connection.clone(),
                         owned.reservation.host_object_path.clone(),
+                        storage_callback,
                     ),
                 };
                 let child = Arc::new(Channels::new(host, None));

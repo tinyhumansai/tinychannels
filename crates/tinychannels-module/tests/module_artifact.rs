@@ -1413,7 +1413,7 @@ async fn compiled_artifact_ingests_scoped_media_and_sends_its_opaque_reference()
                 channel: "telegram".into(),
                 interaction: tinychannels_bus::ChannelInteraction::UpsertDraft {
                     previous: None,
-                    intent: draft_intent.clone(),
+                    intent: Box::new(draft_intent.clone()),
                 },
             },
         )
@@ -1460,7 +1460,7 @@ async fn compiled_artifact_ingests_scoped_media_and_sends_its_opaque_reference()
                 channel: "telegram".into(),
                 interaction: tinychannels_bus::ChannelInteraction::UpsertDraft {
                     previous: Some(draft_outcome.receipt.clone()),
-                    intent: update_intent,
+                    intent: Box::new(update_intent),
                 },
             },
         )
@@ -1507,7 +1507,7 @@ async fn compiled_artifact_ingests_scoped_media_and_sends_its_opaque_reference()
                     channel: "telegram".into(),
                     interaction: tinychannels_bus::ChannelInteraction::UpsertDraft {
                         previous: Some(forged_receipt),
-                        intent: draft_intent
+                        intent: Box::new(draft_intent)
                     },
                 }
             )

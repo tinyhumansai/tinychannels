@@ -7,7 +7,7 @@ fn inbound_vocabulary_preserves_optional_sender_and_existing_message_wire_shape(
     assert_eq!(serde_json::to_value(request).unwrap(), wire);
     let request = PrepareChannelInboundRequest {
         source: ChannelInboundSource::Legacy {
-            message: ChannelMessage::default(),
+            message: Box::new(ChannelMessage::default()),
             envelope: None,
         },
         namespace: "tenant".into(),

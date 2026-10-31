@@ -745,3 +745,17 @@ fn inbound_voice_note_keeps_audio_transcript_source_and_waveform_typed() {
     let decoded: ChannelInboundEnvelope = serde_json::from_value(wire).unwrap();
     assert_eq!(decoded, envelope);
 }
+
+#[test]
+#[allow(deprecated)]
+fn legacy_send_accepts_snake_case_topic_and_reply_with_canonical_output() {
+    let message: crate::SendMessage = serde_json::from_value(serde_json::json!({
+        "content": "hello", "recipient": "conversation", "topic_id": "topic", "reply_to_id": "reply"
+    }))
+    .unwrap();
+    assert_eq!(message.topic_id.as_deref(), Some("topic"));
+    assert_eq!(message.reply_to_id.as_deref(), Some("reply"));
+    let wire = serde_json::to_value(message).unwrap();
+    assert_eq!(wire["topicId"], "topic");
+    assert_eq!(wire["replyToId"], "reply");
+}

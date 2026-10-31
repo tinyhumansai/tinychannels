@@ -38,3 +38,7 @@ pub type SubagentProgressDetail = WebSubagentProgressDetail;
 #[cfg(test)]
 #[path = "web_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "compatibility_tests.rs"]
+mod compatibility_tests;
