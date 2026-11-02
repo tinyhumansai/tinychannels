@@ -1805,8 +1805,6 @@ async fn setup_with_storage_callback(
     connection: Connection,
     storage_callback: Option<BusName>,
 ) -> BusResult<()> {
-    // Storage callbacks identify the module by its well-known name.
-    connection.request_name(BUS_NAME).await?;
     let host =
         HostChannels::new_with_storage_callback(connection.clone(), storage_callback.clone());
     // Storage belongs to the host's invocation scope, which may not exist at
@@ -1825,6 +1823,10 @@ async fn setup_with_storage_callback(
         connection
             .serve_at(OBJECT_PATH.try_into()?, channels)
             .await?;
+        // Claim the well-known name only once the object is served, so a
+        // failed setup never leaves the name held. Storage callbacks identify
+        // the module by this name, but they connect lazily, after setup.
+        connection.request_name(BUS_NAME).await?;
         Ok(())
     }
     .await;
