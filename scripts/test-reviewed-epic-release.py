@@ -1,7 +1,8 @@
-"""Exercise the actual reviewed-epic release workflow input validator."""
+"""Keep the release workflow to the main tag path, with no reviewed-epic mode."""
 
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import tomllib
@@ -10,9 +11,6 @@ import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github/workflows/release.yml"
-CANONICAL = "tinyhumansai/tinychannels"
-EPIC_REF = "refs/heads/epic/8056-modules-wiring"
-REVIEWED_RELEASE = "tinyhumansai/.github/.github/workflows/module-reviewed-epic-release.yml@6ed83b04aab2d8977ec62e966cb914531e534fa4"
 TINYBUS_REV = "61dce96aac5d20d8b6fc7cfe27daef559c7d54c9"
 
 
@@ -58,29 +56,6 @@ def gitlink_revision(repo_root, path):
     return revision
 
 
-def run_validator(**overrides):
-    values = {
-        "EVENT_NAME": "workflow_dispatch",
-        "REPOSITORY": CANONICAL,
-        "REF": EPIC_REF,
-        "RELEASE_MODE": "reviewed",
-        "REVIEWED_PR": "8056",
-    }
-    values.update(overrides)
-    bash = os.environ.get("FEATURE_TEST_BASH", "bash")
-    with tempfile.TemporaryDirectory(prefix="reviewed epic release ") as directory:
-        output_file = Path(directory) / "github-output.txt"
-        result = subprocess.run(
-            [bash, "-c", workflow_run_block("- name: Validate reviewed epic dispatch inputs")],
-            cwd=directory,
-            env=dict(os.environ, **values, GITHUB_OUTPUT="github-output.txt"),
-            capture_output=True,
-            text=True,
-        )
-        output = output_file.read_text(encoding="utf-8") if output_file.exists() else ""
-        return result, output
-
-
 def run_tag_resolver(tag):
     bash = os.environ.get("FEATURE_TEST_BASH", "bash")
     with tempfile.TemporaryDirectory(prefix="ordinary release tag ") as directory:
@@ -96,30 +71,17 @@ def run_tag_resolver(tag):
         return result, output
 
 
-class ReviewedEpicReleaseTests(unittest.TestCase):
-    def test_valid_dispatch_emits_reviewed_release_outputs(self):
-        result, output = run_validator()
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(output, "reviewed_pr=8056\n")
-
-    def test_wrong_event_repo_branch_and_mode_are_rejected(self):
-        for name, value in (
-            ("EVENT_NAME", "push"),
-            ("REPOSITORY", "senamakel/tinychannels"),
-            ("REF", "refs/heads/main"),
-            ("RELEASE_MODE", "tag-only"),
-        ):
-            with self.subTest(input=name, value=value):
-                result, output = run_validator(**{name: value})
-                self.assertNotEqual(result.returncode, 0)
-                self.assertEqual(output, "")
-
-    def test_legacy_zero_and_nonpositive_or_noninteger_pr_values_are_rejected(self):
-        for value in ("0", "-1", "1.5", "abc", "01"):
-            with self.subTest(reviewed_pr=value):
-                result, output = run_validator(REVIEWED_PR=value)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertEqual(output, "")
+class ReleaseWorkflowTests(unittest.TestCase):
+    def test_a_dispatch_names_only_a_tag_and_runs_only_the_module_release(self):
+        # Releases come only from official main, so there is no mode to choose.
+        source = WORKFLOW.read_text(encoding="utf-8")
+        inputs = source.split("    inputs:\n", 1)[1].split("  push:\n", 1)[0]
+        self.assertEqual(re.findall(r"(?m)^      (\w+):$", inputs), ["tag"])
+        jobs = re.findall(r"(?m)^  ([\w-]+):$", source.split("\njobs:\n", 1)[1])
+        self.assertEqual(jobs, ["resolve", "module-release"])
+        for epic_only in ("reviewed_pr", "inputs.mode", "module-reviewed-epic-release", "epic/"):
+            self.assertNotIn(epic_only, source)
+        self.assertEqual(source.count("uses: tinyhumansai/.github/"), 1)
 
     def test_tag_must_be_v_prefixed_semver(self):
         for value in ("0.1.37", "v0.1", "vrelease"):
@@ -132,31 +94,7 @@ class ReviewedEpicReleaseTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(output, "tag=v0.1.37\nversion=0.1.37\n")
 
-    def test_workflow_calls_reviewed_release_with_skip_safe_numeric_pr(self):
-        source = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("      mode:\n", source)
-        self.assertIn("options: [tag, reviewed]", source)
-        self.assertIn(REVIEWED_RELEASE, source)
-        self.assertIn("fromJSON(needs.validate.outputs.reviewed_pr || '0')", source)
-        self.assertIn("default: '0'", source)
-        self.assertIn("if: inputs.mode == 'reviewed'", source)
-        self.assertIn("if: github.event_name == 'push' || inputs.mode != 'reviewed'", source)
-
-    def test_permissions_are_scoped_to_validation_and_release_needs(self):
-        source = WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("permissions: {}", source)
-        self.assertIn(
-            "  validate:\n    if: inputs.mode == 'reviewed'\n"
-            "    runs-on: ubuntu-latest\n    permissions: {}",
-            source,
-        )
-        self.assertIn(
-            "      contents: write\n      pull-requests: read\n"
-            "      checks: read\n      actions: read",
-            source,
-        )
-
-    def test_release_validator_runs_in_existing_feature_test_ci_lane(self):
+    def test_release_workflow_test_runs_in_existing_feature_test_ci_lane(self):
         test_features = (ROOT / "scripts/test-features.sh").read_text(encoding="utf-8")
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn(
@@ -165,12 +103,10 @@ class ReviewedEpicReleaseTests(unittest.TestCase):
         )
         self.assertIn("feature-test-script: scripts/test-features.sh", ci)
 
-    def test_reviewed_release_is_in_the_registered_release_workflow(self):
+    def test_release_is_the_registered_tag_workflow(self):
         source = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("on:\n  workflow_dispatch:", source)
         self.assertIn("  push:\n    tags: ['v*']", source)
-        self.assertIn("if: github.event_name == 'push' || inputs.mode != 'reviewed'", source)
-        self.assertIn("if: inputs.mode == 'reviewed'", source)
         self.assertFalse((ROOT / ".github/workflows/epic-release.yml").exists())
 
     def test_gitlink_lookup_accepts_exact_and_rejects_stale_or_missing(self):
@@ -263,9 +199,7 @@ class ReviewedEpicReleaseTests(unittest.TestCase):
             "3e87ade76b622844985d0c665a3b075313e4545c",
             source,
         )
-        self.assertIn("module-reviewed-epic-release.yml", source)
         self.assertIn("module-release:", source)
-        self.assertIn("default: tag", source)
         self.assertIn("needs: resolve", source)
 
 
