@@ -1,5 +1,8 @@
 //! Outbound channel intent types.
 
+// Preserve the earlier Rust import path without declaring a second outcome type.
+pub use super::receipt::ChannelSendOutcome;
+
 use crate::channel::envelope::{ContentPart, MediaReference};
 use crate::channel::types::{ChannelRef, ConversationRef};
 use schemars::JsonSchema;

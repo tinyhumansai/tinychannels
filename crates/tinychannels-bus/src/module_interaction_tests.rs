@@ -90,7 +90,7 @@ fn typed_draft_interaction_round_trips_full_account_and_topic_scope() {
                 platform_message_ids: vec!["91".into()],
                 ..Default::default()
             }),
-            intent: ChannelOutboundIntent {
+            intent: Box::new(ChannelOutboundIntent {
                 idempotency_key: "draft-op".into(),
                 channel_id: "telegram".into(),
                 conversation_id: "-100".into(),
@@ -107,11 +107,16 @@ fn typed_draft_interaction_round_trips_full_account_and_topic_scope() {
                     text: "progress".into(),
                 },
                 ..Default::default()
-            },
+            }),
         },
     };
+    let ChannelInteraction::UpsertDraft { intent, .. } = &request.interaction else {
+        panic!("wrong interaction")
+    };
+    let expected_intent = serde_json::to_value(intent.as_ref()).unwrap();
     let value = serde_json::to_value(&request).unwrap();
     assert_eq!(value["interaction"]["operation"], "upsert_draft");
+    assert_eq!(value["interaction"]["request"]["intent"], expected_intent);
     let decoded: ChannelInteractionRequest = serde_json::from_value(value).unwrap();
     let ChannelInteraction::UpsertDraft { previous, intent } = decoded.interaction else {
         panic!("wrong interaction")
@@ -235,4 +240,84 @@ fn outbound_voice_uses_a_typed_media_reference_without_legacy_payload_fields() {
     })
     .unwrap();
     assert!(without.get("waveform").is_none());
+}
+
+#[test]
+fn configured_interaction_v2_retains_legacy_provider_facts() {
+    let info = ChannelInteractionInfoV2 {
+        capabilities: ChannelCapabilities {
+            account: crate::AccountCapabilities {
+                proactive_target: Some("chat-7".into()),
+                ..Default::default()
+            },
+            reactions: true,
+            progressive_edits: true,
+            ..Default::default()
+        },
+    };
+    let value = serde_json::to_value(&info).unwrap();
+    assert_eq!(value["capabilities"]["version"], 2);
+    let restored: ChannelInteractionInfoV2 = serde_json::from_value(value).unwrap();
+    assert_eq!(
+        restored.capabilities.account.proactive_target.as_deref(),
+        Some("chat-7")
+    );
+    assert!(restored.capabilities.reactions);
+    assert!(restored.capabilities.progressive_edits);
+    let legacy = LegacyChannelCapabilities::from(&restored.capabilities);
+    assert!(legacy.progressive_edits);
+}
+
+#[test]
+fn boxed_edit_receipt_preserves_full_intent_and_provider_delivery_identity() {
+    let receipt = crate::channel::MessageReceipt {
+        channel: Some(crate::channel::ChannelRef {
+            id: "telegram".into(),
+            account_id: Some("telegram:account-a".into()),
+        }),
+        conversation: Some(crate::channel::ConversationRef {
+            id: "chat".into(),
+            topic_id: Some("topic".into()),
+            ..Default::default()
+        }),
+        primary_platform_message_id: Some("message-1".into()),
+        platform_message_ids: vec!["message-1".into()],
+        ..Default::default()
+    };
+    let expected_receipt = serde_json::to_value(&receipt).unwrap();
+    let intent = ChannelOutboundIntent {
+        idempotency_key: "edit-1".into(),
+        channel_id: "telegram".into(),
+        conversation_id: "chat".into(),
+        channel_ref: receipt.channel.clone(),
+        conversation_ref: receipt.conversation.clone(),
+        reply_to_id: Some("parent-1".into()),
+        payload: crate::OutboundPayload::Text {
+            text: "edited response".into(),
+        },
+        ..Default::default()
+    };
+    let expected_intent = serde_json::to_value(&intent).unwrap();
+    let wire = serde_json::to_value(ChannelInteraction::EditMessage {
+        receipt: Box::new(receipt),
+        intent: Box::new(intent),
+    })
+    .unwrap();
+    assert_eq!(wire["operation"], "edit_message");
+    assert_eq!(wire["request"]["receipt"], expected_receipt);
+    assert_eq!(wire["request"]["intent"], expected_intent);
+    let restored: ChannelInteraction = serde_json::from_value(wire).unwrap();
+    let ChannelInteraction::EditMessage { receipt, intent } = restored else {
+        panic!("wrong interaction")
+    };
+    assert_eq!(
+        receipt.primary_platform_message_id.as_deref(),
+        Some("message-1")
+    );
+    assert_eq!(intent.reply_to_id.as_deref(), Some("parent-1"));
+    assert_eq!(
+        intent.conversation_ref.unwrap().topic_id.as_deref(),
+        Some("topic")
+    );
+    assert_eq!(intent.idempotency_key, "edit-1");
 }

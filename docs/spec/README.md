@@ -32,6 +32,10 @@ state remain outside this crate until they can be split behind transport traits.
 
 ## Research and Porting Specs
 
+- [TinyChannels client](tinychannels-client.md) — host construction, attested
+  runtime leases, and the native test proof boundaries.
+- [Storage needs](storage-needs.md) — the bus contract's declared collection
+  inventory for delivery, remote sessions, and WhatsApp Web persistence.
 - [Channel Contract v2](contract-v2.md) — normative target and v21-to-v22
   compatibility plan.
 - [Harness progress output](progress-output.md) — canonical progress events,

@@ -2,6 +2,8 @@
 
 pub mod adapter;
 pub mod capabilities;
+/// Compatibility paths to the canonical content vocabulary.
+pub mod content;
 pub mod envelope;
 pub mod error;
 pub mod event;

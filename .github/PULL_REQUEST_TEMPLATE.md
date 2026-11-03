@@ -16,7 +16,7 @@
 - [ ] `cargo build --all-targets`
 - [ ] `cargo build --all-targets --all-features`
 - [ ] `cargo test`
-- [ ] `cargo test --all-features`
+- [ ] `scripts/test-features.sh` (stages pinned native artifacts and runs all feature lanes)
 
 ## Documentation
 

@@ -23,7 +23,12 @@ class FeatureLaneTests(unittest.TestCase):
                     'export -f cargo python3',
                     'source "$1"',
                 ]), "feature-lanes", (ROOT / "scripts/test-features.sh").as_posix()],
-                env=dict(os.environ, FEATURE_LANE_CALLS=calls.as_posix(), RUNNER_OS="Linux"),
+                env=dict(
+                    os.environ,
+                    FEATURE_LANE_CALLS=calls.as_posix(),
+                    FEATURE_TEST_SKIP_CLIENT_PREPARE="1",
+                    RUNNER_OS="Linux",
+                ),
                 capture_output=True, text=True,
             )
             self.assertEqual(result.returncode, 0, result.stderr)

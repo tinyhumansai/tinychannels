@@ -1,6 +1,47 @@
 //! Pure declarations for collections owned by TinyChannels.
 
-use tinystoragedrivers_types::CollectionSpec;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+/// Pure index declaration for a TinyChannels-owned collection.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct IndexSpec {
+    pub name: String,
+    pub fields: Vec<String>,
+    pub unique: bool,
+}
+
+/// Pure full-text search declaration for a TinyChannels-owned collection.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct SearchSpec {
+    pub fields: Vec<String>,
+}
+
+/// Serde-only description of one TinyChannels-owned collection.
+///
+/// Storage driver types and setup operations belong to the implementation and
+/// host composition layer; this DTO keeps the bus contract independent of
+/// those runtime dependencies.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default)]
+pub struct CollectionSpec {
+    pub name: String,
+    pub indexes: Vec<IndexSpec>,
+    pub ttl_field: Option<String>,
+    pub search: Option<SearchSpec>,
+}
+
+impl CollectionSpec {
+    #[must_use]
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            ..Default::default()
+        }
+    }
+}
 
 /// Body version used by the current TinyChannels record layout.
 pub const SCHEMA_VERSION: u32 = 2;

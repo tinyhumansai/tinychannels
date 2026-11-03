@@ -1,11 +1,25 @@
 # tinychannels-bus
 
 Serialized channel vocabulary, configuration/schema declarations, interface
-names, relay frames and structured errors. Normal dependencies are Serde,
-JSON/schema/error derivation, and Base64 used only by the existing
-`PassthroughForward.body` custom serializer (`bodyB64`). This crate has no
-provider callbacks, scheduler, crypto, entropy, stateful locks, transport,
-session derivation or delivery algorithms.
+names, relay frames and structured errors. It also declares the async provider
+trait and host-facing call shapes without implementing a provider or executing
+host callbacks. `context` contains shared DTOs and pure per-sender history
+helpers over an in-memory `Arc<Mutex<...>>`. The optional `storage` feature
+exposes serde-only collection declarations through `storage::collections()`.
+The storage implementation adapts these DTOs to TinyStorageDrivers types at
+the point where it provisions collections.
+
+The default normal/build closure contains Serde/JSON/schema/error derivation,
+Base64 for the existing
+`PassthroughForward.body` custom serializer (`bodyB64`), `anyhow`, `async-trait`,
+and Tokio's `sync` channel type. The optional `storage` feature adds only
+`tinystoragedrivers-types` for collection declarations. It contains no TinyBus,
+storage client/runtime or backend driver, HTTP/socket transport, database,
+task executor, scheduler, crypto/entropy implementation, or concrete provider.
+
+Storage collection declarations and serialized record DTOs remain contract
+data here. The `tinychannels` implementation owns owner-local migrations,
+legacy decoding, and conversions between wire records and stored DTOs.
 
 DTOs are defined once here. `tinychannels-runtime` and `tinychannels` re-export
 these same Rust types. Hosts should name wire values through this crate and
@@ -13,9 +27,13 @@ execute behavior through the compiled module. The root library compatibility
 facade is for existing implementation consumers, not a host dependency shortcut.
 
 `python3 scripts/check-bus-purity.py --offline` audits independent default and
-all-feature normal/build dependency closures and rejects runtime source seams.
-The approved 21-package closure includes Base64 solely for serialization;
-crypto and UUID generation remain implementation dependencies.
+all-feature normal/build closures. It rejects storage clients, runtime buses,
+and engine drivers from this contract boundary. Its
+source guard allows async trait signatures, Tokio sync carriers, in-memory
+history locking, and static metadata while rejecting concrete I/O, task,
+database, and provider execution. The CI feature-test lane runs this gate and
+its Python negative controls. Crypto and UUID generation remain implementation
+dependencies.
 
 The original module and host callback names, method arities, JSON field names,
 optional fields and persisted configuration values are unchanged. See the

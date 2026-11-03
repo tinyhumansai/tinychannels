@@ -48,8 +48,10 @@ deny = []
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-# TinyStorageDrivers and TinyBus are pinned to exact canonical revisions.
+# Storage/voice use canonical revisions; the attested TinyBus SDK is pinned
+# to the coordinated migration PR until it lands upstream.
 allow-git = [
     "https://github.com/tinyhumansai/tinystoragedrivers",
     "https://github.com/tinyhumansai/tinyvoice",
+    "https://github.com/senamakel/tinybus",
 ]

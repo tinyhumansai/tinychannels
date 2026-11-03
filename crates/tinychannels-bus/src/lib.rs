@@ -36,14 +36,16 @@ pub mod module_supervision;
 pub mod module_web_output;
 pub mod names;
 pub mod relay;
-#[cfg(feature = "storage")]
 pub mod storage;
+pub mod storage_names;
 #[allow(
     deprecated,
     reason = "v21 DTO definitions and adapters remain for one release"
 )]
 pub mod traits;
 pub mod version;
+/// Compatibility paths to the canonical host voice vocabulary.
+pub mod voice;
 pub mod web;
 pub use capabilities::{
     AccountCapabilities, ActionCapabilities, AddressingCapabilities,

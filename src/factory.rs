@@ -987,6 +987,13 @@ pub fn build_channels(
         );
     }
 
+    #[cfg(not(feature = "imessage"))]
+    if config.imessage.is_some() {
+        tracing::warn!(
+            "[channels] imessage is configured but iMessage support is disabled in this build; skipping"
+        );
+    }
+
     if let Some(signal) = build_signal_channel(config, host, http) {
         channels.push(
             BuiltChannel::with_output_ports(

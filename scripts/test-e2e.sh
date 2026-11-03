@@ -10,5 +10,6 @@ case "${RUNNER_OS:-$(uname -s)}" in
   *)
     scripts/build-module.sh --crate tinychannels-module --version "$version" --target "$target" --host ci --output-dir target/module-e2e
     scripts/verify-module.sh --archive "target/module-e2e/tinychannels-module-$version-ci.tar.gz"
+    bash scripts/test-client-e2e.sh
     ;;
 esac

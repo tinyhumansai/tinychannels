@@ -13,7 +13,7 @@ use tinystoragedrivers_types::{
 };
 
 use super::key;
-use super::records::{ChatBinding, StoredDelivery, StoredResult, to_stored_ms};
+use super::records::{ChatBinding, to_stored_ms};
 use super::schema::{
     DELIVERY_FAILED, DELIVERY_PENDING, DELIVERY_RESULTS, LEGACY_DELIVERY_FAILED,
     LEGACY_DELIVERY_PENDING, LEGACY_DELIVERY_RESULTS, LEGACY_REMOTE_BINDINGS, LEGACY_REMOTE_BUSY,
@@ -335,7 +335,7 @@ fn transform(kind: Transform, record: Versioned<Value>) -> Result<Option<Target>
             }
             Some(Target {
                 id: key::of([entry.id.as_str()])?.as_str().to_owned(),
-                body: serde_json::to_value(StoredDelivery::from(&entry))?,
+                body: serde_json::to_value(super::records::stored_delivery_from_queued(&entry))?,
                 expires_ms: None,
             })
         }
@@ -345,7 +345,9 @@ fn transform(kind: Transform, record: Versioned<Value>) -> Result<Option<Target>
             };
             Some(Target {
                 id: key::of([legacy.result.id.as_str()])?.as_str().to_owned(),
-                body: serde_json::to_value(StoredResult::from(&legacy.result))?,
+                body: serde_json::to_value(super::records::stored_result_from_terminal(
+                    &legacy.result,
+                ))?,
                 expires_ms: Some(to_stored_ms(legacy.expires_at_unix_ms)),
             })
         }

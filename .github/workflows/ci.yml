@@ -33,3 +33,17 @@ jobs:
       coverage-script: scripts/check-coverage.sh
       module-e2e-script: scripts/test-e2e.sh
       feature-test-script: scripts/test-features.sh
+  storage-needs-boundary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.94.0
+      - name: Test the standalone storage-needs consumer
+        run: cargo run --locked --manifest-path proofs/storage-needs-consumer/Cargo.toml --target-dir target/storage-needs-consumer
+      - name: Check the storage-needs dependency boundary
+        run: python3 scripts/check-storage-needs-boundary.py
+      - name: Test dependency-boundary negative controls
+        run: python3 scripts/test-storage-needs-boundary.py

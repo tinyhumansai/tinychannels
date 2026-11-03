@@ -24,10 +24,20 @@ pub struct ChannelMessage {
     /// When set, replies should be posted as threaded responses.
     pub thread_ts: Option<String>,
     /// Provider message identifier this inbound message replies to.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "replyToId")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "replyToId",
+        alias = "reply_to_id"
+    )]
     pub reply_to_id: Option<String>,
     /// Independent provider topic identifier where supported.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "topicId")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "topicId",
+        alias = "topic_id"
+    )]
     pub topic_id: Option<String>,
     /// The sender's display name as the platform gives it (WhatsApp push
     /// name, Telegram first and last name, Signal profile name, ...). Never
@@ -62,10 +72,20 @@ pub struct SendMessage {
     /// Platform thread identifier for threaded replies (e.g. Slack `thread_ts`).
     pub thread_ts: Option<String>,
     /// Independent provider topic identifier where supported.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "topicId")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "topicId",
+        alias = "topic_id"
+    )]
     pub topic_id: Option<String>,
     /// Source message identifier for a provider reply.
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "replyToId")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "replyToId",
+        alias = "reply_to_id"
+    )]
     pub reply_to_id: Option<String>,
     /// Caller-provided or generated idempotency key for retry-safe delivery.
     pub idempotency_key: Option<String>,

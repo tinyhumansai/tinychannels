@@ -11,9 +11,8 @@ use sha2::{Digest, Sha256};
 use tinystoragedrivers_api::{BlobReader, BlobStore, DocumentStore};
 use tinystoragedrivers_types::{Filter, Precondition, Query, Version};
 
-use tinychannels_bus::storage::{
-    MEDIA_BLOB_PREFIX, MEDIA_METADATA as MEDIA_COLLECTION, media_metadata_spec,
-};
+use crate::storage::schema::media_metadata_spec;
+use tinychannels_bus::storage::{MEDIA_BLOB_PREFIX, MEDIA_METADATA as MEDIA_COLLECTION};
 const MEDIA_KEY_PREFIX: &str = MEDIA_BLOB_PREFIX;
 const OPAQUE_ID_PREFIX: &str = "tinychannels_media_v1_";
 

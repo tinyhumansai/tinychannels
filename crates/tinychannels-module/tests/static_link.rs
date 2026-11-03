@@ -3,18 +3,12 @@
 #![cfg(feature = "static-link")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use tinybus::{
-    broker::Broker,
-    module::{ModuleHost, ModuleState},
-    transport::memory::MemoryBus,
-};
+use tinybus::module::{ModuleRuntime, ModuleState, RuntimeNames};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn linked_module_is_admitted_and_becomes_ready() {
-    let bus = MemoryBus::new();
-    let broker = Broker::new();
-    broker.clone().spawn(bus.clone());
-    let host = ModuleHost::new(broker);
+    let runtime = ModuleRuntime::start(&RuntimeNames::default(), None).unwrap();
+    let host = runtime.host();
     let info = host
         .attach_linked_with_config(
             tinychannels_module::linked_module().unwrap(),
@@ -36,4 +30,9 @@ async fn linked_module_is_admitted_and_becomes_ready() {
     })
     .await
     .expect("linked module reaches Ready");
+    assert_eq!(info.manifest.provides.len(), 1);
+    assert_eq!(
+        info.manifest.provides[0].version.interface.as_str(),
+        tinychannels_bus::BUS_NAME
+    );
 }

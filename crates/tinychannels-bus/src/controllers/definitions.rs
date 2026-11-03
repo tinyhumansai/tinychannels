@@ -4,10 +4,11 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// Which authentication mode a channel connection uses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum ChannelAuthMode {
     /// User provides an API key or access token.
     #[serde(rename = "api_key")]
+    #[default]
     ApiKey,
     /// User provides a bot token (e.g. Telegram BotFather token).
     #[serde(rename = "bot_token")]

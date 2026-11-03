@@ -41,7 +41,7 @@ pub enum ChannelInteraction {
     /// Full-scope draft creation or edit through a configured v2 adapter.
     UpsertDraft {
         previous: Option<crate::channel::MessageReceipt>,
-        intent: crate::channel::ChannelOutboundIntent,
+        intent: Box<crate::channel::ChannelOutboundIntent>,
     },
     UpdateDraft {
         recipient: String,
@@ -62,8 +62,8 @@ pub enum ChannelInteraction {
         remove: bool,
     },
     EditMessage {
-        receipt: crate::channel::MessageReceipt,
-        intent: crate::channel::ChannelOutboundIntent,
+        receipt: Box<crate::channel::MessageReceipt>,
+        intent: Box<crate::channel::ChannelOutboundIntent>,
     },
     DeleteMessage {
         receipt: crate::channel::MessageReceipt,

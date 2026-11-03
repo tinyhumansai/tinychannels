@@ -5,7 +5,7 @@
 
 use sha2::{Digest, Sha256};
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
-use tinybus::{Connection, broker::Broker, module::ModuleHost, transport::memory::MemoryTransport};
+use tinybus::module::{ModuleRuntime, RuntimeNames};
 use tinychannels_bus::{BUS_NAME, ChannelRuntimeReservation, HOST_BUS_NAME, OBJECT_PATH, methods};
 
 #[derive(Debug, serde::Deserialize)]
@@ -100,9 +100,27 @@ async fn runtime_only_host_closes_scoped_resources_without_a_legacy_callback_obj
         ),
     )
     .unwrap();
-    let broker = Broker::new();
-    let modules = ModuleHost::new(broker.clone());
+    let runtime = ModuleRuntime::start(&RuntimeNames::default(), None).unwrap();
+    let connection = runtime.connection();
+    let modules = runtime.host();
     let loaded = modules.load_file(&staged).unwrap();
+    modules
+        .ensure_ready(loaded.manifest.bus_name.as_str())
+        .await
+        .unwrap();
+    assert!(
+        connection
+            .attestation(loaded.manifest.bus_name.clone())
+            .await
+            .unwrap()
+            .is_some()
+    );
+    assert_eq!(loaded.manifest.provides.len(), 1);
+    assert_eq!(
+        loaded.manifest.provides[0].version.interface.as_str(),
+        BUS_NAME,
+        "storage is supplied through the host callback instead of a migration service"
+    );
     let provided = loaded.manifest.provides.first().unwrap();
     let actual: Vec<_> = provided
         .methods
@@ -110,9 +128,6 @@ async fn runtime_only_host_closes_scoped_resources_without_a_legacy_callback_obj
         .map(|method| method.as_str())
         .collect();
     assert_eq!(actual, tinychannels_bus::METHODS);
-    let (client, broker_transport) = MemoryTransport::pair();
-    broker.attach(Arc::new(broker_transport));
-    let connection = Connection::connect(Box::new(client)).await.unwrap();
     connection.request_name(HOST_BUS_NAME).await.unwrap();
     let proxy = connection.proxy(BUS_NAME, OBJECT_PATH, BUS_NAME).unwrap();
     let bounded_proxy = connection
@@ -257,18 +272,18 @@ async fn runtime_only_host_closes_scoped_resources_without_a_legacy_callback_obj
 
     let request = RemoteOperation::Execute {
         workspace_dir: remote_workspace.path().to_str().unwrap().into(),
-        message: tinychannels_bus::ChannelMessage {
+        message: Box::new(tinychannels_bus::ChannelMessage {
             id: "fixture".into(),
             sender: "sender".into(),
             reply_target: "chat".into(),
             content: "/HELP@FixtureBot".into(),
             channel: "telegram".into(),
             timestamp: 1,
-            topic_id: None,
-            reply_to_id: None,
             thread_ts: None,
             sender_name: None,
-        },
+            topic_id: None,
+            reply_to_id: None,
+        }),
         route: RemoteRoute {
             provider: "fixture".into(),
             model: "fixture".into(),
@@ -323,14 +338,14 @@ async fn runtime_only_host_closes_scoped_resources_without_a_legacy_callback_obj
     assert_eq!(prepared.client_id, "inbound");
     let inbound = PrepareChannelInboundRequest {
         source: ChannelInboundSource::Legacy {
-            message: tinychannels_bus::ChannelMessage {
+            message: Box::new(tinychannels_bus::ChannelMessage {
                 id: "msg".into(),
                 channel: "discord".into(),
                 sender: "user".into(),
                 reply_target: "room".into(),
                 content: "fixture".into(),
                 ..Default::default()
-            },
+            }),
             envelope: None,
         },
         namespace: "tenant".into(),
@@ -551,7 +566,10 @@ async fn runtime_only_host_closes_scoped_resources_without_a_legacy_callback_obj
     let rendered: PreparedChannelIntent = first_client
         .call_confidential(
             methods::PREPARE_OUTBOUND_INTENT,
-            ("linq", ChannelMessagePreparation::Intent(prepared.intent)),
+            (
+                "linq",
+                ChannelMessagePreparation::Intent(Box::new(prepared.intent)),
+            ),
         )
         .await
         .unwrap();

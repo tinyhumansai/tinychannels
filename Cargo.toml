@@ -2,12 +2,14 @@
 members = [
     "crates/tinychannels-bus",
     "crates/tinychannels-module",
+    "crates/tinychannels-client",
     "crates/tinychannels-runtime",
 ]
 default-members = [
     ".",
     "crates/tinychannels-bus",
     "crates/tinychannels-module",
+    "crates/tinychannels-client",
     "crates/tinychannels-runtime",
 ]
 # The bus is a submodule with its own workspace; it is a path dependency of the
@@ -23,10 +25,19 @@ tinybus-module = { path = "vendor/tinybus/crates/tinybus-module" }
 # vendored checkout so the module and the storage client share one `Connection`.
 [patch."https://github.com/tinyhumansai/tinybus"]
 tinybus = { path = "vendor/tinybus/crates/tinybus" }
+tinybus-module = { path = "vendor/tinybus/crates/tinybus-module" }
+
+[patch."https://github.com/senamakel/tinybus"]
+tinybus = { path = "vendor/tinybus/crates/tinybus" }
+tinybus-module = { path = "vendor/tinybus/crates/tinybus-module" }
 
 [workspace.package]
 # Releases update this sole workspace version before packaging every crate.
-version = "0.1.45"
+version = "0.2.0"
+
+[workspace.dependencies]
+tinybus = { version = "=0.3.12", git = "https://github.com/senamakel/tinybus", tag = "v0.3.12", default-features = false }
+tinybus-module = { version = "=0.3.12", git = "https://github.com/senamakel/tinybus", tag = "v0.3.12", default-features = false }
 
 [package]
 rust-version = "1.94"
@@ -100,8 +111,8 @@ tinychannels-bus = { path = "crates/tinychannels-bus", features = ["storage"] }
 tinychannels-runtime = { path = "crates/tinychannels-runtime" }
 # Storage ports only: no driver crate and no database client. The host (or the
 # bus client in the module crate) supplies the backend.
-tinystoragedrivers-api = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "bf1f0a97fbe6165a6edd9521659c7f6859700761" }
-tinystoragedrivers-types = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "bf1f0a97fbe6165a6edd9521659c7f6859700761" }
+tinystoragedrivers-api = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
+tinystoragedrivers-types = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
 anyhow = "1"
 async-trait = "0.1"
 base64 = "0.23"
@@ -152,7 +163,7 @@ bytes = { version = "1", optional = true }
 
 [dev-dependencies]
 bytes = "1"
-tinybus = { path = "vendor/tinybus/crates/tinybus", features = ["modules"] }
+tinybus = { workspace = true, features = ["modules"] }
 tinychannels-conformance = { path = "crates/tinychannels-conformance" }
 tinyvoice-bus = { git = "https://github.com/tinyhumansai/tinyvoice", rev = "cf6444424149bbc8dc2303bddbd9b366abb29933" }
 # Dual-declared: the optional dependency above belongs to the `lark` provider,
@@ -163,5 +174,5 @@ tempfile = "3"
 toml = "1"
 wiremock = "0.6"
 tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "test-util"] }
-tinystoragedrivers-testkit = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "bf1f0a97fbe6165a6edd9521659c7f6859700761" }
-tinystoragedrivers-document = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "bf1f0a97fbe6165a6edd9521659c7f6859700761" }
+tinystoragedrivers-testkit = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
+tinystoragedrivers-document = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }

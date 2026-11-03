@@ -157,6 +157,9 @@ cargo test --features email,lark
   algorithms, history/context processing, configuration preparation and text
   segmentation. It re-exports the same bus DTOs.
 - `crates/tinychannels-module/` is the loadable TinyBus module.
+- `crates/tinychannels-client/` is the host-side typed API for confidential
+  module calls and identity-scoped runtime leases. It binds the attested module
+  once, then keeps reservation and object calls on that same peer.
 - The module keeps its original `StartChannel`, `StopChannel`, `SendMessage`,
   `ListChannels` and `ChannelStatus` members, and adds relay reservation/start/
   stop/status/send plus `Shutdown`, typed `SendChannelIntent`, and send-only
@@ -188,6 +191,36 @@ cargo test --features email,lark
 - `src/backend.rs` owns `ChannelBackend` and `ChannelManager`; `src/host/` is
   the host service boundary; `src/routes.rs` and `src/runtime.rs` hold portable
   runtime helpers.
+
+Hosts construct `TinyChannelsClient` from their `ModuleClient` and ask it for a
+strictly attested runtime driver. The host then leases one identity-scoped
+module runtime, supplies the callback object for that identity, uses the typed
+object returned by the lease, and closes the lease during sign-out or shutdown:
+
+```rust,ignore
+let client = TinyChannelsClient::new(module_client);
+let driver = client.runtime_driver().await?;
+let lease = runtime
+    .lease(
+        driver,
+        |reservation, _object| make_identity_callback(reservation),
+        retry_policy,
+        report_lease_event,
+    )
+    .await?;
+
+let channels = lease.object();
+channels
+    .describe_configured_channels(config, proxy)
+    .await?;
+
+lease.close().await?;
+```
+
+The host owns `ModuleClient`, `ModuleRuntime`, callback registration, retry
+policy, configuration and credentials. A lease's object methods remain bound to
+the peer selected by `runtime_driver`; closing the lease stops that reservation
+and releases its callback object without shutting down the shared module.
 
 The [pure-contract relocation specification](docs/spec/pure-contract-relocation.md)
 records extension-trait source migrations and subsequent module-operation work.

@@ -644,14 +644,14 @@ async fn outbound_only_provider_dispatches_draft_upsert_through_retained_draft_p
     let result = running
         .interact(tinychannels_bus::ChannelInteraction::UpsertDraft {
             previous: None,
-            intent: tinychannels_bus::ChannelOutboundIntent {
+            intent: Box::new(tinychannels_bus::ChannelOutboundIntent {
                 idempotency_key: "draft-worker".into(),
                 conversation_id: "room".into(),
                 payload: tinychannels_bus::OutboundPayload::Text {
                     text: "draft".into(),
                 },
                 ..Default::default()
-            },
+            }),
         })
         .await
         .unwrap_or_else(|error| panic!("{error}"));
@@ -675,7 +675,7 @@ async fn outbound_only_provider_rejects_draft_upsert_without_a_draft_port() {
     let error = running
         .interact(tinychannels_bus::ChannelInteraction::UpsertDraft {
             previous: None,
-            intent: tinychannels_bus::ChannelOutboundIntent::default(),
+            intent: Box::default(),
         })
         .await
         .unwrap_err();

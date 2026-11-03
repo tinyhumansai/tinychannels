@@ -1,0 +1,20 @@
+[package]
+name = "tinychannels-client-test-fixture"
+version = "0.2.0"
+edition = "2024"
+rust-version = "1.94"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tinybus = { version = "0.3.12", path = "../../../vendor/tinybus/crates/tinybus", default-features = false, features = ["macros", "modules"] }
+tinybus-module = { version = "0.3.12", path = "../../../vendor/tinybus/crates/tinybus-module" }
+tinychannels-bus = { path = "../../tinychannels-bus", features = ["storage"] }
+tokio = { version = "1", features = ["sync"] }
+
+[workspace]

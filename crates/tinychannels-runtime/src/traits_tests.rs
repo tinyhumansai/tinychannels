@@ -256,3 +256,42 @@ fn webhook_rejection_keeps_its_safe_wire_error_text() {
     let source: &dyn std::error::Error = &error;
     assert!(source.source().is_none());
 }
+
+struct Recording(std::sync::Mutex<Vec<String>>);
+
+#[async_trait]
+impl Channel for Recording {
+    fn name(&self) -> &str {
+        "recording"
+    }
+
+    async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
+        self.0
+            .lock()
+            .unwrap()
+            .push(format!("send:{}", message.content));
+        Ok(())
+    }
+
+    async fn listen(&self, _tx: tokio::sync::mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    async fn send_idempotent(&self, message: &SendMessage) -> anyhow::Result<()> {
+        self.0
+            .lock()
+            .unwrap()
+            .push(format!("idem:{}", message.content));
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn send_with_outbound_intent_routes_through_send_idempotent() {
+    let channel = Recording(Default::default());
+    channel
+        .send_with_outbound_intent(&SendMessage::new("x", "bob"))
+        .await
+        .unwrap();
+    assert_eq!(*channel.0.lock().unwrap(), vec!["idem:x".to_string()]);
+}

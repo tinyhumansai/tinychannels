@@ -3,6 +3,8 @@
 # behind — which then gets committed as build output.
 target/
 **/*.rs.bk
+__pycache__/
+*.py[cod]
 
 # Release staging built by the `native-bundles` job. Local runs of that
 # packaging step leave a multi-megabyte `cdylib` and its archive here, and an

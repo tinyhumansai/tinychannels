@@ -10,7 +10,9 @@ use async_trait::async_trait;
 use serde_json::Value;
 use tinybus::Connection;
 use tinychannels::storage::delivery::{PENDING_COLLECTION, RESULTS_COLLECTION};
-use tinychannels::storage::records::{StoredDelivery, StoredResult};
+use tinychannels::storage::records::{
+    StoredDelivery, StoredResult, queued_from_stored_delivery, terminal_result_from_stored,
+};
 use tinychannels_bus::{DeliveryQueueEntry, DeliveryTerminalResult};
 use tinystoragedrivers_api::{DocumentStore, DocumentStoreExt, Storage, StorageBackend};
 use tinystoragedrivers_busproxy::{PerCallerEndpoint, ServedStorage, StorageServer, serve};
@@ -174,7 +176,7 @@ impl StorageHost {
     async fn entries(&self, scope: &str, name: &str) -> BTreeMap<String, DeliveryQueueEntry> {
         let raw: BTreeMap<String, StoredDelivery> = self.collection(scope, name).await;
         raw.into_values()
-            .map(DeliveryQueueEntry::from)
+            .map(queued_from_stored_delivery)
             .map(|entry| (entry.id.clone(), entry))
             .collect()
     }
@@ -191,7 +193,7 @@ impl StorageHost {
     pub(crate) async fn results(&self, scope: &str) -> BTreeMap<String, DeliveryTerminalResult> {
         let raw: BTreeMap<String, StoredResult> = self.collection(scope, RESULTS_COLLECTION).await;
         raw.into_values()
-            .map(DeliveryTerminalResult::from)
+            .map(terminal_result_from_stored)
             .map(|result| (result.id.clone(), result))
             .collect()
     }

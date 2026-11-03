@@ -1308,3 +1308,30 @@ async fn relay_shutdown_joins_reader_and_refuses_reconnect() {
     );
     supervisor.shutdown().await;
 }
+
+#[test]
+fn relay_send_action_preserves_ordered_typed_parts_in_payload_metadata() {
+    let parts = ["first", "second"]
+        .into_iter()
+        .map(|text| tinychannels_bus::OutboundContentPart::Content {
+            part: tinychannels_bus::ContentPart::Text {
+                text: text.into(),
+                markdown_dialect: None,
+            },
+        })
+        .collect::<Vec<_>>();
+    let intent = ChannelOutboundIntent {
+        idempotency_key: "typed-relay-key".into(),
+        payload: OutboundPayload::Parts {
+            parts: parts.clone(),
+        },
+        ..Default::default()
+    };
+    let action = relay_send_action_from_outbound_intent(&intent);
+    assert_eq!(
+        action["metadata"]["payload"]["parts"],
+        serde_json::to_value(&parts).unwrap()
+    );
+    assert_eq!(action["metadata"]["idempotency_key"], "typed-relay-key");
+    assert_eq!(action["content"], "");
+}

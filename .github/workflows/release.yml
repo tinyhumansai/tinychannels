@@ -2,10 +2,21 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: Select the ordinary tag release or the reviewed epic release path.
+        type: choice
+        options: [tag, reviewed]
+        default: tag
+        required: true
       tag:
         description: Existing version tag (vX.Y.Z) committed through a reviewed PR
         type: string
         required: true
+      reviewed_pr:
+        description: Positive canonical PR number for a reviewed epic release.
+        type: string
+        default: '0'
+        required: false
   push:
     tags: ['v*']
 permissions: {}
@@ -31,8 +42,48 @@ jobs:
           }
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+  validate:
+    if: inputs.mode == 'reviewed'
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      reviewed_pr: ${{ steps.validate.outputs.reviewed_pr }}
+    steps:
+      - name: Validate reviewed epic dispatch inputs
+        id: validate
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          REF: ${{ github.ref }}
+          RELEASE_MODE: ${{ inputs.mode }}
+          REVIEWED_PR: ${{ inputs.reviewed_pr || '0' }}
+        run: |
+          set -euo pipefail
+          [[ "$EVENT_NAME" == "workflow_dispatch" ]] || {
+            echo "reviewed release must be dispatched" >&2
+            exit 2
+          }
+          [[ "$REPOSITORY" == "tinyhumansai/tinychannels" ]] || {
+            echo "release caller is not the canonical TinyChannels repository" >&2
+            exit 2
+          }
+          [[ "$REF" == "refs/heads/epic/8056-modules-wiring" ]] || {
+            echo "release must run from epic/8056-modules-wiring" >&2
+            exit 2
+          }
+          [[ "$RELEASE_MODE" == "reviewed" ]] || {
+            echo "release mode must be reviewed" >&2
+            exit 2
+          }
+          [[ "$REVIEWED_PR" =~ ^[1-9][0-9]*$ ]] || {
+            echo "reviewed_pr must be a positive integer" >&2
+            exit 2
+          }
+          printf 'reviewed_pr=%s\n' "$REVIEWED_PR" >> "$GITHUB_OUTPUT"
   module-release:
     needs: resolve
+    if: github.event_name == 'push' || inputs.mode != 'reviewed'
     permissions:
       contents: write
     uses: tinyhumansai/.github/.github/workflows/module-release.yml@3e87ade76b622844985d0c665a3b075313e4545c
@@ -40,3 +91,16 @@ jobs:
       tag: ${{ needs.resolve.outputs.tag }}
       version: ${{ needs.resolve.outputs.version }}
       module-crate: tinychannels-module
+  module-reviewed-epic-release:
+    needs: [resolve, validate]
+    if: inputs.mode == 'reviewed'
+    permissions:
+      contents: write
+      pull-requests: read
+      checks: read
+      actions: read
+    uses: tinyhumansai/.github/.github/workflows/module-reviewed-epic-release.yml@6ed83b04aab2d8977ec62e966cb914531e534fa4
+    with:
+      tag: ${{ needs.resolve.outputs.tag }}
+      version: ${{ needs.resolve.outputs.version }}
+      reviewed-pr: ${{ fromJSON(needs.validate.outputs.reviewed_pr || '0') }}

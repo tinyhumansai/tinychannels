@@ -1276,6 +1276,16 @@ async fn final_output_terminates_without_a_second_legacy_send_and_replays_receip
             .count(),
         1
     );
+    assert!(
+        matches!(
+            requests
+                .iter()
+                .find(|request| matches!(request, ProgressiveTransportRequest::SendTyped { .. })),
+            Some(ProgressiveTransportRequest::SendTyped { text, parts, .. })
+                if text == "final" && parts.is_empty()
+        ),
+        "a text-only final stays plain text in the typed delivery request"
+    );
     assert_eq!(
         requests
             .iter()
@@ -2037,6 +2047,7 @@ fn output_scope_accepts_a_hosted_turn_lease_and_rejects_longer_ones() {
     assert!(scope(3_660_000).is_ok(), "a one-hour turn lease must open");
     assert!(scope(3_700_000).is_ok());
     assert!(scope(3_700_001).is_err());
+    assert!(scope(u64::MAX).is_err());
     assert!(scope(0).is_err());
 }
 

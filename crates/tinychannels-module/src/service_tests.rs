@@ -3,6 +3,26 @@ use tinychannels_bus::ChannelsConfig;
 use tinychannels_bus::config::WhatsAppConfig;
 
 #[tokio::test]
+async fn storage_callback_is_deferred_until_the_host_runtime_is_ready() {
+    let bus = tinybus::transport::memory::MemoryBus::new();
+    tinybus::broker::Broker::new().spawn(bus.clone());
+    let module = Connection::connect(bus.connect().await.unwrap())
+        .await
+        .unwrap();
+    // Host storage is scoped to a runtime that is created after module boot.
+    // A configured callback must therefore be resolved lazily, without any
+    // legacy fallback when an operation later needs storage.
+    let absent_storage = ":1.999".try_into().unwrap();
+    setup_with_storage_callback(module.clone(), Some(absent_storage))
+        .await
+        .expect("module registration does not require a runtime storage scope");
+    assert_eq!(
+        module.name_owner(BUS_NAME).await.unwrap(),
+        module.unique_name()
+    );
+}
+
+#[tokio::test]
 async fn service_web_turn_methods_open_project_and_release_one_scoped_handle() {
     let bus = tinybus::transport::memory::MemoryBus::new();
     tinybus::broker::Broker::new().spawn(bus.clone());
@@ -138,6 +158,51 @@ fn whatsapp(cloud: bool) -> ChannelsConfig {
         }),
         ..ChannelsConfig::default()
     }
+}
+
+#[test]
+fn module_setup_config_preserves_null_and_empty_legacy_defaults() {
+    let null: ModuleSetupConfig = serde_json::from_str("null").unwrap();
+    let empty: ModuleSetupConfig = serde_json::from_str("{}").unwrap();
+    assert!(null.storage_callback().unwrap().is_none());
+    assert!(empty.storage_callback().unwrap().is_none());
+}
+
+#[test]
+fn outbound_intent_restores_topic_and_reply_metadata_for_provider_send() {
+    let mut message = tinychannels_bus::SendMessage::new("hello", "100");
+    message.thread_ts = Some("55".into());
+    message.topic_id = Some("7".into());
+    message.reply_to_id = Some("56".into());
+    let intent = tinychannels::outbound_intent_from_send_message("telegram", &message);
+
+    let restored = legacy_text_message(&intent).unwrap();
+    assert_eq!(restored.thread_ts.as_deref(), Some("55"));
+    assert_eq!(restored.topic_id.as_deref(), Some("7"));
+    assert_eq!(restored.reply_to_id.as_deref(), Some("56"));
+}
+
+#[test]
+fn module_setup_config_accepts_only_a_unique_storage_callback() {
+    let configured: ModuleSetupConfig = serde_json::from_value(serde_json::json!({
+        "storage_callback": ":1.23"
+    }))
+    .unwrap();
+    assert_eq!(
+        configured.storage_callback().unwrap().unwrap().as_str(),
+        ":1.23"
+    );
+    let well_known: ModuleSetupConfig = serde_json::from_value(serde_json::json!({
+        "storage_callback": "ai.tinyhumans.openhuman.Storage"
+    }))
+    .unwrap();
+    assert!(well_known.storage_callback().is_err());
+    assert!(
+        serde_json::from_value::<ModuleSetupConfig>(serde_json::json!({
+            "unexpected": true
+        }))
+        .is_err()
+    );
 }
 
 #[test]
@@ -2385,7 +2450,7 @@ async fn preparation_preserves_explicit_keys_and_typed_thread_before_provider_io
     let rendered = channels
         .prepare_outbound_intent(
             "telegram".into(),
-            ChannelMessagePreparation::Intent(original.clone()),
+            ChannelMessagePreparation::Intent(Box::new(original.clone())),
         )
         .await
         .unwrap();
@@ -2400,7 +2465,7 @@ async fn preparation_preserves_explicit_keys_and_typed_thread_before_provider_io
         channels
             .prepare_outbound_intent(
                 "discord".into(),
-                ChannelMessagePreparation::Intent(original)
+                ChannelMessagePreparation::Intent(Box::new(original))
             )
             .await
             .is_err()
@@ -2483,7 +2548,7 @@ async fn inbound_preparation_preserves_escaped_persisted_keys_and_provider_threa
     let prepared = service
         .prepare_channel_inbound(PrepareChannelInboundRequest {
             source: ChannelInboundSource::Legacy {
-                message: message.clone(),
+                message: Box::new(message.clone()),
                 envelope: None,
             },
             namespace: "openhuman".into(),
@@ -2744,7 +2809,7 @@ async fn inbound_preparation_refuses_mismatched_identity_oversized_payload_and_s
     envelope.sender.id = "other".into();
     let request = PrepareChannelInboundRequest {
         source: ChannelInboundSource::Legacy {
-            message: message.clone(),
+            message: Box::new(message.clone()),
             envelope: Some(envelope),
         },
         namespace: "tenant".into(),
@@ -2761,7 +2826,7 @@ async fn inbound_preparation_refuses_mismatched_identity_oversized_payload_and_s
     huge.content = "x".repeat(tinychannels_bus::module_runtime::PREPARATION_MESSAGE_BYTES);
     let request = PrepareChannelInboundRequest {
         source: ChannelInboundSource::Legacy {
-            message: huge,
+            message: Box::new(huge),
             envelope: None,
         },
         namespace: "tenant".into(),
@@ -2796,7 +2861,8 @@ async fn inbound_preparation_refuses_mismatched_identity_oversized_payload_and_s
                 reply_target: "room".into(),
                 content: "hello".into(),
                 ..Default::default()
-            },
+            }
+            .into(),
             envelope: None,
         },
         namespace: "tenant".into(),
@@ -3638,6 +3704,61 @@ async fn shutdown_refuses_preparation_and_execution_before_host_work() {
 }
 
 #[tokio::test]
+async fn declared_web_projection_methods_require_confidential_delivery() {
+    use tinybus::Interface;
+    let bus = tinybus::transport::memory::MemoryBus::new();
+    tinybus::broker::Broker::new().spawn(bus.clone());
+    let connection = Connection::connect(bus.connect().await.unwrap())
+        .await
+        .unwrap();
+    let service = Channels::new(HostChannels::new(connection), None);
+    for name in [
+        tinychannels_bus::methods::BEGIN_WEB_TURN,
+        tinychannels_bus::methods::PROJECT_WEB_OUTPUT,
+        tinychannels_bus::methods::END_WEB_TURN,
+    ] {
+        let member: tinybus::MemberName = name.try_into().unwrap();
+        assert!(
+            service.members().contains(&member),
+            "declared method {name} must be dispatched"
+        );
+        assert!(
+            service.requires_confidential(&member),
+            "web output is confidential"
+        );
+    }
+}
+
+#[tokio::test]
+async fn web_turn_admission_rechecks_shutdown_after_waiting_for_registry() {
+    let bus = tinybus::transport::memory::MemoryBus::new();
+    tinybus::broker::Broker::new().spawn(bus.clone());
+    let connection = Connection::connect(bus.connect().await.unwrap())
+        .await
+        .unwrap();
+    let channels = Channels::new(HostChannels::new(connection), None);
+    let held = channels.web_turns.lock().await;
+    let mut begin = Box::pin(channels.begin_web_turn(
+        tinychannels_bus::module_web_output::BeginWebTurn {
+            scope_key: "web:shutdown".into(),
+            context: tinychannels_bus::web::WebEventContext {
+                client_id: "client".into(),
+                thread_id: "thread".into(),
+                request_id: "request".into(),
+                ..Default::default()
+            },
+        },
+    ));
+    assert!(futures_util::poll!(&mut begin).is_pending());
+    channels.terminal.store(true, Ordering::SeqCst);
+    drop(held);
+    assert!(
+        begin.await.is_err(),
+        "shutdown closes queued web turn admission"
+    );
+}
+
+#[tokio::test]
 async fn a_conflicting_pending_entry_is_quarantined_and_does_not_block_a_later_required_send() {
     use tinychannels::delivery::{
         DeliveryQueueStore as _, DeliveryRecoveryState, DeliveryResultStore as _, QueuedDelivery,
@@ -3674,4 +3795,55 @@ async fn a_conflicting_pending_entry_is_quarantined_and_does_not_block_a_later_r
     assert_eq!(received.recv().await.unwrap().content, "hello");
     assert!(store.load_pending("stuck").await.unwrap().is_none());
     assert!(store.load_failed("stuck").await.unwrap().is_some());
+}
+
+#[test]
+fn text_only_typed_intent_preserves_parts_and_delivery_identity() {
+    let parts = ["first", "second"]
+        .into_iter()
+        .map(|text| tinychannels_bus::OutboundContentPart::Content {
+            part: tinychannels_bus::ContentPart::Text {
+                text: text.into(),
+                markdown_dialect: None,
+            },
+        })
+        .collect::<Vec<_>>();
+    let intent = ChannelOutboundIntent {
+        idempotency_key: "typed-key".into(),
+        conversation_id: "42".into(),
+        thread_id: Some("thread".into()),
+        reply_to_id: Some("reply".into()),
+        payload: tinychannels::OutboundPayload::Parts {
+            parts: parts.clone(),
+        },
+        ..Default::default()
+    };
+    let message = tinychannels_bus::ChannelOutboundMessage::from_intent(&intent);
+    assert_eq!(message.parts, parts);
+    assert_eq!(message.conversation_id, "42");
+    assert_eq!(message.thread_id.as_deref(), Some("thread"));
+    assert_eq!(message.reply_to_id.as_deref(), Some("reply"));
+    assert_eq!(message.idempotency_key, "typed-key");
+}
+
+#[test]
+fn rich_typed_intent_keeps_its_parts_in_the_provider_message() {
+    let rich = vec![tinychannels_bus::OutboundContentPart::Content {
+        part: tinychannels_bus::ContentPart::Native {
+            provider: "fixture".into(),
+            data: serde_json::json!({"kind":"provider-payload"}),
+        },
+    }];
+    for parts in [rich, Vec::new()] {
+        let intent = ChannelOutboundIntent {
+            idempotency_key: "rich-key".into(),
+            payload: tinychannels::OutboundPayload::Parts {
+                parts: parts.clone(),
+            },
+            ..Default::default()
+        };
+        let message = tinychannels_bus::ChannelOutboundMessage::from_intent(&intent);
+        assert_eq!(message.parts, parts);
+        assert_eq!(message.idempotency_key, "rich-key");
+    }
 }

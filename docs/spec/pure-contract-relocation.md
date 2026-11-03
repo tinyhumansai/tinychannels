@@ -47,10 +47,14 @@ it does not change the wire contract version or released module interface.
 ## Verification and remaining work
 
 The purity checker generates separate probe workspaces under `target/` and
-traverses all normal/build edges without a platform filter, once for defaults
-and once for every declared bus feature. Dev dependencies are excluded. Its
-allowlist covers serialization/schema/error packages and Base64; source guards
-also catch runtime seams that could use only the standard library.
+traverses the complete normal/build dependency closure without a platform
+filter, once for defaults and once for every declared bus feature. Dev edges
+are excluded and missing graph metadata fails closed. The bus owns async
+provider interfaces, Tokio channel types, in-memory context helpers, and static
+TSD2 collection declarations through `tinystoragedrivers-types`; it does not
+own provider execution, sockets, tasks, storage clients, database clients or
+drivers. The source guard checks those runtime seams independently of the
+dependency graph, and CI runs both the guard and its negative controls.
 
 The module follow-up adds a bounded relay lifecycle (`ReserveRelay`,
 confidential `StartRelay`, `StopRelay`, safe `RelayStatus`, and

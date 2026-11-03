@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ChannelInboundSource {
     Legacy {
-        message: ChannelMessage,
+        message: Box<ChannelMessage>,
         #[serde(default)]
         envelope: Option<ChannelInboundEnvelope>,
     },

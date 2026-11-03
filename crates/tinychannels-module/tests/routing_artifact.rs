@@ -1,17 +1,35 @@
+use std::sync::Arc;
 use std::time::Duration;
-use tinybus::test_support::{admit_module, start_bus, wait_until_serving};
+use tinybus::{
+    broker::Broker,
+    module::ModuleHost,
+    test_support::{admit_module, wait_until_serving},
+    transport::memory::MemoryTransport,
+};
 use tinychannels_bus::{BUS_NAME, OBJECT_PATH};
 
 #[tokio::test]
 #[ignore = "run through scripts/verify-module-artifact.sh"]
 async fn compiled_runtime_commands_preserve_alias_unknown_and_help_behavior() {
-    let (modules, connection, _broker_task) = start_bus().await.unwrap();
-    admit_module(
+    let broker = Broker::new_restricted_module_control();
+    let (broker_transport, client_transport) = MemoryTransport::pair();
+    broker
+        .attach_module_controller(Arc::new(broker_transport))
+        .unwrap();
+    let connection = tinybus::Connection::connect(Box::new(client_transport))
+        .await
+        .unwrap();
+    let modules = ModuleHost::new(broker);
+    let info = admit_module(
         &modules,
         "TINYCHANNELS_MODULE_ARTIFACT",
         "tinychannels-module",
     )
     .unwrap();
+    modules
+        .ensure_ready(info.manifest.bus_name.as_str())
+        .await
+        .unwrap();
     wait_until_serving(&connection, BUS_NAME, Duration::from_secs(5))
         .await
         .unwrap();

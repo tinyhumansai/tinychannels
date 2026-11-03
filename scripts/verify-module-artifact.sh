@@ -26,9 +26,9 @@ trap 'rm -rf "$artifact_dir"' EXIT
 staged_artifact="$artifact_dir/$(basename "$artifact")"
 cp "$artifact" "$staged_artifact"
 if command -v sha256sum >/dev/null 2>&1; then
-  artifact_hash="$(sha256sum "$staged_artifact" | awk '{print $1}')"
+  artifact_hash="$(sha256sum < "$staged_artifact" | awk '{print $1}')"
 else
-  artifact_hash="$(shasum -a 256 "$staged_artifact" | awk '{print $1}')"
+  artifact_hash="$(shasum -a 256 < "$staged_artifact" | awk '{print $1}')"
 fi
 printf '"%s" = "%s"\n' "$(basename "$staged_artifact")" "$artifact_hash" > "$artifact_dir/modules.toml"
 
