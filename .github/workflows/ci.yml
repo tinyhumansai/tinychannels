@@ -40,7 +40,7 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@1.94.0
+      - uses: dtolnay/rust-toolchain@1.120.0
       - name: Test the standalone storage-needs consumer
         run: cargo run --locked --manifest-path proofs/storage-needs-consumer/Cargo.toml --target-dir target/storage-needs-consumer
       - name: Check the storage-needs dependency boundary
