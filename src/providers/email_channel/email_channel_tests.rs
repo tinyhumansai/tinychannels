@@ -663,6 +663,8 @@ enum IdleStep {
 #[derive(Clone, Default)]
 struct ConnScript {
     reject_login: bool,
+    /// Answer `SELECT` with `NO`, as a server does for a missing folder.
+    reject_select: bool,
     reject_store: bool,
     stall_logout: Option<(Arc<Notify>, Arc<Notify>)>,
     /// The i-th `UID SEARCH` answers with the i-th entry; later ones are empty.
@@ -711,6 +713,10 @@ async fn serve_connection(sock: tokio::net::TcpStream, script: ConnScript) -> Ve
         let mut reply = Vec::new();
         if upper.starts_with("LOGIN") && script.reject_login {
             reply.extend_from_slice(format!("{tag} NO bad credentials\r\n").as_bytes());
+            let _ = write.write_all(&reply).await;
+            continue;
+        } else if upper.starts_with("SELECT") && script.reject_select {
+            reply.extend_from_slice(format!("{tag} NO mailbox does not exist\r\n").as_bytes());
             let _ = write.write_all(&reply).await;
             continue;
         } else if upper.starts_with("SELECT") {
@@ -829,6 +835,57 @@ async fn a_hung_imap_connect_times_out_and_the_loop_retries() {
         "each hung attempt timed out and was retried"
     );
     listen.abort();
+}
+
+/// A login whose SELECT fails never listens, so the reconnect loop must not
+/// count it as healthy: a missing folder would otherwise reset the backoff and
+/// the failure streak on every attempt and never escalate.
+#[tokio::test]
+async fn a_session_that_logs_in_but_cannot_select_is_not_healthy() {
+    let (port, _server) = fake_imap(vec![ConnScript {
+        reject_select: true,
+        ..Default::default()
+    }])
+    .await;
+    let channel = imap_channel(&["@example.com"], 30);
+    let (tx, _rx) = mpsc::channel(1);
+    let listening = std::sync::atomic::AtomicBool::new(false);
+
+    let result = channel
+        .run_idle_session(
+            &EmailDelivery::Legacy(&tx),
+            plain_session(&channel, port),
+            &listening,
+        )
+        .await;
+
+    assert!(result.is_err(), "SELECT was refused");
+    assert!(!listening.load(std::sync::atomic::Ordering::Relaxed));
+}
+
+/// A session that selects the mailbox and reaches IDLE is healthy, even if
+/// the connection drops later.
+#[tokio::test]
+async fn a_session_that_reaches_idle_is_healthy() {
+    let (port, _server) = fake_imap(vec![ConnScript {
+        idles: vec![IdleStep::Truncate],
+        ..Default::default()
+    }])
+    .await;
+    let channel = imap_channel(&["@example.com"], 30);
+    let (tx, _rx) = mpsc::channel(1);
+    let listening = std::sync::atomic::AtomicBool::new(false);
+
+    let result = channel
+        .run_idle_session(
+            &EmailDelivery::Legacy(&tx),
+            plain_session(&channel, port),
+            &listening,
+        )
+        .await;
+
+    assert!(result.is_err(), "the dropped IDLE ends the session");
+    assert!(listening.load(std::sync::atomic::Ordering::Relaxed));
 }
 
 /// A credentials refusal is typed, so the loop keeps it at error level while

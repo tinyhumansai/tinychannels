@@ -541,17 +541,13 @@ impl EmailChannel {
         let mut streak = crate::runtime::FailureStreak::default();
 
         loop {
-            let logged_in = std::sync::atomic::AtomicBool::new(false);
+            let listening = std::sync::atomic::AtomicBool::new(false);
             let attempt = async {
-                let session = timeout(IMAP_CONNECT_TIMEOUT, connect())
+                timeout(IMAP_CONNECT_TIMEOUT, connect())
                     .await
-                    .map_err(|_| {
-                        anyhow!("IMAP connect timed out after {IMAP_CONNECT_TIMEOUT:?}")
-                    })??;
-                logged_in.store(true, std::sync::atomic::Ordering::Relaxed);
-                Ok::<_, anyhow::Error>(session)
+                    .map_err(|_| anyhow!("IMAP connect timed out after {IMAP_CONNECT_TIMEOUT:?}"))?
             };
-            match self.run_idle_session(&delivery, attempt).await {
+            match self.run_idle_session(&delivery, attempt, &listening).await {
                 Ok(()) => {
                     // Clean exit (channel closed)
                     return Ok(());
@@ -560,9 +556,10 @@ impl EmailChannel {
                     return Err(error);
                 }
                 Err(e) => {
-                    // A session that logged in was healthy: it ends any streak
-                    // and the backoff starts over.
-                    if logged_in.load(std::sync::atomic::Ordering::Relaxed) {
+                    // A session that reached IDLE was healthy: it ends any
+                    // streak and the backoff starts over. Logging in alone is
+                    // not enough: a session whose SELECT fails never listens.
+                    if listening.load(std::sync::atomic::Ordering::Relaxed) {
                         streak.record_success();
                         backoff = self.reconnect_backoff;
                     }
@@ -588,12 +585,17 @@ impl EmailChannel {
         }
     }
 
-    /// Run a single IDLE session until error or clean shutdown
+    /// Run a single IDLE session until error or clean shutdown.
+    ///
+    /// Sets `listening` once the mailbox is selected and the first unseen
+    /// scan is done, i.e. once the session is actually serving: the reconnect
+    /// loop counts only such a session as healthy.
     #[cfg(feature = "email")]
     pub(super) async fn run_idle_session<S: ImapStream>(
         &self,
         delivery: &EmailDelivery<'_>,
         connect: impl std::future::Future<Output = Result<Session<S>>>,
+        listening: &std::sync::atomic::AtomicBool,
     ) -> Result<()> {
         // Connect and authenticate
         let mut session = connect.await?;
@@ -612,6 +614,7 @@ impl EmailChannel {
         // Check for existing unseen messages first
         self.process_unseen_to(&mut session, delivery, uid_validity)
             .await?;
+        listening.store(true, std::sync::atomic::Ordering::Relaxed);
 
         loop {
             // Enter IDLE and wait for changes (consumes session, returns it via result)
