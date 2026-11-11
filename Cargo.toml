@@ -20,6 +20,11 @@ resolver = "3"
 [patch.crates-io]
 tinybus = { path = "vendor/tinybus/crates/tinybus" }
 tinybus-module = { path = "vendor/tinybus/crates/tinybus-module" }
+# async-imap 0.12.0 depends on pin-utils, which is unmaintained (RUSTSEC-2026-0441).
+# Upstream replaced it with pin-project in d1f2606421, the only commit after the
+# 0.12.0 release, so this is 0.12.0 with that one change. Drop this patch (and its
+# deny.toml allow-git entry) once a release after 0.12.0 is published.
+async-imap = { git = "https://github.com/async-email/async-imap", rev = "d1f2606421c9211f992c1c565a32d8f770476aeb" }
 
 # tinystoragedrivers names tinybus by git rev; point that source at the same
 # vendored checkout so the module and the storage client share one `Connection`.

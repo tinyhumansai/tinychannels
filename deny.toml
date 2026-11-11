@@ -49,9 +49,11 @@ unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 # Storage/voice use canonical revisions; the attested TinyBus SDK is pinned
-# to the coordinated migration PR until it lands upstream.
+# to the coordinated migration PR until it lands upstream. async-imap is pinned
+# to the upstream commit that drops pin-utils until its next release (Cargo.toml).
 allow-git = [
     "https://github.com/tinyhumansai/tinystoragedrivers",
     "https://github.com/tinyhumansai/tinyvoice",
     "https://github.com/senamakel/tinybus",
+    "https://github.com/async-email/async-imap",
 ]
