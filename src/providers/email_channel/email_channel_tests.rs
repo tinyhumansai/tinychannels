@@ -805,6 +805,55 @@ async fn plain_session(
 
 const HANG_GUARD: Duration = Duration::from_secs(20);
 
+/// A server that never answers the connect must not hold the reconnect loop:
+/// each attempt is bounded by `IMAP_CONNECT_TIMEOUT` and the loop retries.
+#[tokio::test(start_paused = true)]
+async fn a_hung_imap_connect_times_out_and_the_loop_retries() {
+    let channel = imap_channel(&["@example.com"], 30);
+    let attempts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let (tx, _rx) = mpsc::channel(1);
+    let counted = attempts.clone();
+    let listen = tokio::spawn(async move {
+        channel
+            .listen_with_reconnect(&tx, || {
+                counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                std::future::pending::<Result<Session<tokio::net::TcpStream>>>()
+            })
+            .await
+    });
+
+    // Two timeouts plus the 1-2 ms backoffs between them.
+    tokio::time::sleep(inbound::IMAP_CONNECT_TIMEOUT * 2 + Duration::from_secs(1)).await;
+    assert!(
+        attempts.load(std::sync::atomic::Ordering::SeqCst) >= 3,
+        "each hung attempt timed out and was retried"
+    );
+    listen.abort();
+}
+
+/// A credentials refusal is typed, so the loop keeps it at error level while
+/// ordinary disconnects become warnings.
+#[tokio::test]
+async fn a_refused_imap_login_is_typed_as_a_login_rejection() {
+    let (port, _server) = fake_imap(vec![ConnScript {
+        reject_login: true,
+        ..Default::default()
+    }])
+    .await;
+    let channel = imap_channel(&["@example.com"], 30);
+
+    let error = plain_session(&channel, port).await.unwrap_err();
+
+    assert!(
+        error.downcast_ref::<ImapLoginRejected>().is_some(),
+        "{error:#}"
+    );
+    assert!(
+        error.to_string().starts_with("IMAP login failed:"),
+        "{error}"
+    );
+}
+
 async fn recv(rx: &mut mpsc::Receiver<ChannelMessage>) -> ChannelMessage {
     timeout(HANG_GUARD, rx.recv())
         .await

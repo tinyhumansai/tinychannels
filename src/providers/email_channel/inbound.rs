@@ -21,6 +21,10 @@ use tokio::sync::mpsc;
 use tokio::time::{sleep, timeout};
 use tracing::info;
 
+/// Bound on one IMAP connect + TLS + login attempt. Without it a server that
+/// accepts TCP and never answers would hold the reconnect loop forever.
+pub(super) const IMAP_CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
 fn email_ref() -> ChannelRef {
     ChannelRef {
         id: "email".into(),
@@ -308,7 +312,12 @@ impl EmailChannel {
         let session = client
             .login(&self.config.username, &self.config.password)
             .await
-            .map_err(|(e, _)| anyhow!("IMAP login failed: {}", e))?;
+            .map_err(|(e, _)| match e {
+                async_imap::error::Error::No(_) | async_imap::error::Error::Bad(_) => {
+                    anyhow::Error::new(super::ImapLoginRejected(e.to_string()))
+                }
+                other => anyhow!("IMAP login failed: {}", other),
+            })?;
 
         debug!("IMAP login successful");
         Ok(session)
@@ -529,9 +538,20 @@ impl EmailChannel {
     {
         let mut backoff = self.reconnect_backoff;
         let max_backoff = self.max_reconnect_backoff;
+        let mut streak = crate::runtime::FailureStreak::default();
 
         loop {
-            match self.run_idle_session(&delivery, connect()).await {
+            let logged_in = std::sync::atomic::AtomicBool::new(false);
+            let attempt = async {
+                let session = timeout(IMAP_CONNECT_TIMEOUT, connect())
+                    .await
+                    .map_err(|_| {
+                        anyhow!("IMAP connect timed out after {IMAP_CONNECT_TIMEOUT:?}")
+                    })??;
+                logged_in.store(true, std::sync::atomic::Ordering::Relaxed);
+                Ok::<_, anyhow::Error>(session)
+            };
+            match self.run_idle_session(&delivery, attempt).await {
                 Ok(()) => {
                     // Clean exit (channel closed)
                     return Ok(());
@@ -540,10 +560,26 @@ impl EmailChannel {
                     return Err(error);
                 }
                 Err(e) => {
-                    error!(
-                        "IMAP session error: {}. Reconnecting in {:?}...",
-                        e, backoff
-                    );
+                    // A session that logged in was healthy: it ends any streak
+                    // and the backoff starts over.
+                    if logged_in.load(std::sync::atomic::Ordering::Relaxed) {
+                        streak.record_success();
+                        backoff = self.reconnect_backoff;
+                    }
+                    let escalate = streak.record_failure();
+                    if escalate || e.downcast_ref::<super::ImapLoginRejected>().is_some() {
+                        error!(
+                            "IMAP session error ({} in a row): {}. Reconnecting in {:?}...",
+                            streak.failures(),
+                            e,
+                            backoff
+                        );
+                    } else {
+                        warn!(
+                            "IMAP session error: {}. Reconnecting in {:?}...",
+                            e, backoff
+                        );
+                    }
                     sleep(backoff).await;
                     // Exponential backoff with cap
                     backoff = std::cmp::min(backoff * 2, max_backoff);

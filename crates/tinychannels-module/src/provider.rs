@@ -727,6 +727,9 @@ impl tinychannels::channel::ChannelInboundSink for ModuleEvents {
     }
 }
 
+/// How long a provider listener must stay up to count as a healthy session.
+const HEALTHY_LISTENER_RUN: Duration = Duration::from_secs(60);
+
 /// Reconnect execution stays in the module; raw provider errors never cross callbacks.
 async fn listen_with_supervision(
     adapter: Arc<dyn ChannelAdapter>,
@@ -739,11 +742,36 @@ async fn listen_with_supervision(
         return start_adapter_listener(&adapter, legacy.as_ref(), sink.clone()).await;
     };
     let name = adapter.descriptor().id;
-    let mut backoff = policy.initial_backoff_secs.max(1);
+    let initial = policy.initial_backoff_secs.max(1);
+    let mut backoff = initial;
     let maximum = policy.max_backoff_secs.max(backoff);
+    let mut streak = tinychannels::runtime::FailureStreak::default();
     loop {
-        if let Err(error) = start_adapter_listener(&adapter, legacy.as_ref(), sink.clone()).await {
-            tracing::warn!(provider = %name, %error, "provider listener stopped; restarting");
+        let started = tokio::time::Instant::now();
+        let outcome = start_adapter_listener(&adapter, legacy.as_ref(), sink.clone()).await;
+        // A listener that stayed up was healthy: its stop is a fresh
+        // disconnect, so the streak and the backoff start over.
+        if started.elapsed() >= HEALTHY_LISTENER_RUN {
+            streak.record_success();
+            backoff = initial;
+        }
+        let escalate = streak.record_failure();
+        match outcome {
+            Err(error) if escalate => tracing::error!(
+                provider = %name,
+                failures = streak.failures(),
+                %error,
+                "provider listener keeps failing; restarting"
+            ),
+            Err(error) => {
+                tracing::warn!(provider = %name, %error, "provider listener stopped; restarting");
+            }
+            Ok(()) if escalate => tracing::error!(
+                provider = %name,
+                failures = streak.failures(),
+                "provider listener keeps stopping; restarting"
+            ),
+            Ok(()) => {}
         }
         host.report_status(&name, "restarting", Some("provider disconnected".into()))
             .await;
