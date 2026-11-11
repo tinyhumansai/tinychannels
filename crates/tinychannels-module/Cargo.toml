@@ -34,9 +34,9 @@ tinybus-module = { version = "=0.3.12", git = "https://github.com/senamakel/tiny
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
 # Storage over the bus: the module reaches host storage through the same port
 # traits a linked library gets, never through per-module persistence callbacks.
-tinystoragedrivers-api = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
-tinystoragedrivers-types = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
-tinystoragedrivers-busproxy = { version = "2.1.2", git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
+tinystoragedrivers-api = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "f5a33025b9feaa36fea522cce764fe8c796e5139" }
+tinystoragedrivers-types = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "f5a33025b9feaa36fea522cce764fe8c796e5139" }
+tinystoragedrivers-busproxy = { version = "2.1.3", git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "f5a33025b9feaa36fea522cce764fe8c796e5139" }
 serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.11"
@@ -54,7 +54,7 @@ base64 = "0.23"
 tinychannels = { path = "../.." }
 tinychannels-conformance = { path = "../tinychannels-conformance" }
 tinybus = { workspace = true, features = ["test-support"] }
-tinystoragedrivers-testkit = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
+tinystoragedrivers-testkit = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "f5a33025b9feaa36fea522cce764fe8c796e5139" }
 tempfile = "3"
 tokio = { version = "1", features = ["test-util"] }
 serde_json = "1"
