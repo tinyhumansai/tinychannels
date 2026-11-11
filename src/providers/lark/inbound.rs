@@ -223,7 +223,7 @@ impl LarkChannel {
                             }
                         }
                         None => { tracing::info!("Lark: WS closed — reconnecting"); break; }
-                        Some(Err(e)) => { tracing::error!("Lark: WS read error: {e}"); break; }
+                        Some(Err(e)) => { tracing::warn!("Lark: WS read error: {e}"); break; }
                     };
 
                     let frame = match PbFrame::decode(&raw[..]) {

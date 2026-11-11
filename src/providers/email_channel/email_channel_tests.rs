@@ -663,6 +663,8 @@ enum IdleStep {
 #[derive(Clone, Default)]
 struct ConnScript {
     reject_login: bool,
+    /// Answer `SELECT` with `NO`, as a server does for a missing folder.
+    reject_select: bool,
     reject_store: bool,
     stall_logout: Option<(Arc<Notify>, Arc<Notify>)>,
     /// The i-th `UID SEARCH` answers with the i-th entry; later ones are empty.
@@ -711,6 +713,10 @@ async fn serve_connection(sock: tokio::net::TcpStream, script: ConnScript) -> Ve
         let mut reply = Vec::new();
         if upper.starts_with("LOGIN") && script.reject_login {
             reply.extend_from_slice(format!("{tag} NO bad credentials\r\n").as_bytes());
+            let _ = write.write_all(&reply).await;
+            continue;
+        } else if upper.starts_with("SELECT") && script.reject_select {
+            reply.extend_from_slice(format!("{tag} NO mailbox does not exist\r\n").as_bytes());
             let _ = write.write_all(&reply).await;
             continue;
         } else if upper.starts_with("SELECT") {
@@ -804,6 +810,106 @@ async fn plain_session(
 }
 
 const HANG_GUARD: Duration = Duration::from_secs(20);
+
+/// A server that never answers the connect must not hold the reconnect loop:
+/// each attempt is bounded by `IMAP_CONNECT_TIMEOUT` and the loop retries.
+#[tokio::test(start_paused = true)]
+async fn a_hung_imap_connect_times_out_and_the_loop_retries() {
+    let channel = imap_channel(&["@example.com"], 30);
+    let attempts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let (tx, _rx) = mpsc::channel(1);
+    let counted = attempts.clone();
+    let listen = tokio::spawn(async move {
+        channel
+            .listen_with_reconnect(&tx, || {
+                counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                std::future::pending::<Result<Session<tokio::net::TcpStream>>>()
+            })
+            .await
+    });
+
+    // Two timeouts plus the 1-2 ms backoffs between them.
+    tokio::time::sleep(inbound::IMAP_CONNECT_TIMEOUT * 2 + Duration::from_secs(1)).await;
+    assert!(
+        attempts.load(std::sync::atomic::Ordering::SeqCst) >= 3,
+        "each hung attempt timed out and was retried"
+    );
+    listen.abort();
+}
+
+/// A login whose SELECT fails never listens, so the reconnect loop must not
+/// count it as healthy: a missing folder would otherwise reset the backoff and
+/// the failure streak on every attempt and never escalate.
+#[tokio::test]
+async fn a_session_that_logs_in_but_cannot_select_is_not_healthy() {
+    let (port, _server) = fake_imap(vec![ConnScript {
+        reject_select: true,
+        ..Default::default()
+    }])
+    .await;
+    let channel = imap_channel(&["@example.com"], 30);
+    let (tx, _rx) = mpsc::channel(1);
+    let listening = std::sync::atomic::AtomicBool::new(false);
+
+    let result = channel
+        .run_idle_session(
+            &EmailDelivery::Legacy(&tx),
+            plain_session(&channel, port),
+            &listening,
+        )
+        .await;
+
+    assert!(result.is_err(), "SELECT was refused");
+    assert!(!listening.load(std::sync::atomic::Ordering::Relaxed));
+}
+
+/// A session that selects the mailbox and reaches IDLE is healthy, even if
+/// the connection drops later.
+#[tokio::test]
+async fn a_session_that_reaches_idle_is_healthy() {
+    let (port, _server) = fake_imap(vec![ConnScript {
+        idles: vec![IdleStep::Truncate],
+        ..Default::default()
+    }])
+    .await;
+    let channel = imap_channel(&["@example.com"], 30);
+    let (tx, _rx) = mpsc::channel(1);
+    let listening = std::sync::atomic::AtomicBool::new(false);
+
+    let result = channel
+        .run_idle_session(
+            &EmailDelivery::Legacy(&tx),
+            plain_session(&channel, port),
+            &listening,
+        )
+        .await;
+
+    assert!(result.is_err(), "the dropped IDLE ends the session");
+    assert!(listening.load(std::sync::atomic::Ordering::Relaxed));
+}
+
+/// A credentials refusal is typed, so the loop keeps it at error level while
+/// ordinary disconnects become warnings.
+#[tokio::test]
+async fn a_refused_imap_login_is_typed_as_a_login_rejection() {
+    let (port, _server) = fake_imap(vec![ConnScript {
+        reject_login: true,
+        ..Default::default()
+    }])
+    .await;
+    let channel = imap_channel(&["@example.com"], 30);
+
+    let error = plain_session(&channel, port).await.unwrap_err();
+
+    assert!(
+        error.downcast_ref::<ImapLoginRejected>().is_some(),
+        "{error:#}"
+    );
+    assert!(
+        error.to_string().starts_with("IMAP login failed:"),
+        "{error}"
+    );
+}
 
 async fn recv(rx: &mut mpsc::Receiver<ChannelMessage>) -> ChannelMessage {
     timeout(HANG_GUARD, rx.recv())

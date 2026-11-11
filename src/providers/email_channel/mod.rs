@@ -155,6 +155,15 @@ enum EmailDelivery<'a> {
 #[error("Email inbound sink rejected an event")]
 struct InboundSinkRejected;
 
+/// The IMAP server refused the credentials (`NO`/`BAD` to `LOGIN`).
+///
+/// Unlike a dropped connection this needs the user to fix their config, so the
+/// reconnect loop keeps reporting it as an error.
+#[cfg(feature = "email")]
+#[derive(Debug, thiserror::Error)]
+#[error("IMAP login failed: {0}")]
+struct ImapLoginRejected(String);
+
 /// Internal struct for parsed email data
 #[cfg(feature = "email")]
 struct ParsedEmail {

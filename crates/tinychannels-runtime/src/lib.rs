@@ -26,6 +26,41 @@ pub use session::{ChannelSession, run_in_session};
 /// Maximum reconnect jitter added to a listener retry.
 pub const MAX_JITTER_MS: u64 = 1_000;
 
+/// Consecutive listener failures, with no healthy session between them,
+/// before one is reported as an error rather than a warning.
+pub const FAILURE_ESCALATE_THRESHOLD: u32 = 5;
+
+/// How loudly a reconnect loop reports a failed session.
+///
+/// A transient disconnect is ordinary network churn: the loop already retries
+/// with backoff, so it is a warning. The same failure repeating with no healthy
+/// session in between is worth an error, reported once per streak so a long
+/// outage does not log one error per retry.
+#[derive(Debug, Default)]
+pub struct FailureStreak {
+    failures: u32,
+}
+
+impl FailureStreak {
+    /// Record a failed session. Returns `true` exactly when this failure
+    /// completes a streak of [`FAILURE_ESCALATE_THRESHOLD`], so the caller
+    /// escalates once.
+    pub fn record_failure(&mut self) -> bool {
+        self.failures = self.failures.saturating_add(1);
+        self.failures == FAILURE_ESCALATE_THRESHOLD
+    }
+
+    /// A healthy session ends the streak.
+    pub fn record_success(&mut self) {
+        self.failures = 0;
+    }
+
+    /// Failures in the current streak.
+    pub fn failures(&self) -> u32 {
+        self.failures
+    }
+}
+
 /// Compute the bounded listener queue capacity for a provider count.
 pub fn compute_max_in_flight_messages(channel_count: usize) -> usize {
     channel_count.saturating_mul(4).clamp(8, 64)
