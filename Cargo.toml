@@ -111,8 +111,8 @@ tinychannels-bus = { path = "crates/tinychannels-bus", features = ["storage"] }
 tinychannels-runtime = { path = "crates/tinychannels-runtime" }
 # Storage ports only: no driver crate and no database client. The host (or the
 # bus client in the module crate) supplies the backend.
-tinystoragedrivers-api = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
-tinystoragedrivers-types = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
+tinystoragedrivers-api = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "f5a33025b9feaa36fea522cce764fe8c796e5139" }
+tinystoragedrivers-types = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "f5a33025b9feaa36fea522cce764fe8c796e5139" }
 anyhow = "1"
 async-trait = "0.1"
 base64 = "0.23"
@@ -127,7 +127,7 @@ parking_lot = "0.12"
 prost = { version = "0.14", optional = true }
 rand = "0.10"
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "stream"] }
-rusqlite = { version = "0.40", features = ["bundled"], optional = true }
+rusqlite = { version = "0.41", features = ["bundled"], optional = true }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "logging", "tls12"] }
 rustls-pki-types = "1.14.0"
 schemars = { version = "1", features = ["derive"] }
@@ -146,7 +146,13 @@ uuid = { version = "1", features = ["v4"] }
 webpki-roots = "1.0.6"
 
 # Email channel (SMTP + IMAP).
-async-imap = { version = "0.12", default-features = false, features = ["runtime-tokio"], optional = true }
+# async-imap 0.12.0 depends on pin-utils, which is unmaintained (RUSTSEC-2026-0441).
+# Upstream replaced it with pin-project in d1f2606421, the only commit after the
+# 0.12.0 release, so this is 0.12.0 with that one change. It is pinned here, on the
+# dependency itself rather than a [patch], so workspaces that depend on
+# tinychannels get it too. Return to the crates.io release (and drop the
+# deny.toml allow-git entry) once a release after 0.12.0 is published.
+async-imap = { version = "0.12", git = "https://github.com/async-email/async-imap", rev = "d1f2606421c9211f992c1c565a32d8f770476aeb", default-features = false, features = ["runtime-tokio"], optional = true }
 lettre = { version = "0.11.22", default-features = false, features = ["builder", "smtp-transport", "rustls-tls", "tokio1-rustls-tls"], optional = true }
 mail-parser = { version = "0.11.2", optional = true }
 
@@ -174,5 +180,5 @@ tempfile = "3"
 toml = "1"
 wiremock = "0.6"
 tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "test-util"] }
-tinystoragedrivers-testkit = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
-tinystoragedrivers-document = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "6226b9484c8bd01c58741718cd89ba90a13a36bb" }
+tinystoragedrivers-testkit = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "f5a33025b9feaa36fea522cce764fe8c796e5139" }
+tinystoragedrivers-document = { git = "https://github.com/tinyhumansai/tinystoragedrivers", rev = "f5a33025b9feaa36fea522cce764fe8c796e5139" }
