@@ -3847,3 +3847,92 @@ fn rich_typed_intent_keeps_its_parts_in_the_provider_message() {
         assert_eq!(message.idempotency_key, "rich-key");
     }
 }
+
+#[tokio::test]
+async fn route_commands_cover_listings_unknown_providers_empty_models_and_oversized_requests() {
+    use tinychannels_bus::module_control::{
+        ChannelControlRequest as Request, ChannelControlResult as Response, ProviderDescriptor,
+    };
+    use tinychannels_bus::module_remote::RemoteRoute;
+    let service = inbound_preparation_service().await;
+    enable_remote_providers(&service).await;
+    let request = |content: &str| {
+        Request::Route {
+        workspace_dir: ".".into(),
+        message: serde_json::from_value(serde_json::json!({"id":"fixture","sender":"sender","reply_target":"chat","content":content,"channel":"telegram","timestamp":1})).unwrap(),
+        capabilities: None,
+        route: RemoteRoute { provider: "approved".into(), model: "model".into() },
+        history_len: 0,
+        session_scope: None,
+        configured_channel: None,
+        providers: vec![ProviderDescriptor { name: "approved".into(), aliases: vec![] }],
+    }
+    };
+    let reply = |response: Response| match response {
+        Response::Route {
+            reply,
+            next_route,
+            clear_history,
+        } => (reply, next_route, clear_history),
+        other => panic!("expected a route, got {other:?}"),
+    };
+
+    let (unknown, next, clear) = reply(
+        service
+            .prepare_channel_control(request("/models nowhere"))
+            .await
+            .unwrap(),
+    );
+    assert!(unknown.unwrap().starts_with("Unknown provider `nowhere`"));
+    assert_eq!((next, clear), (None, false));
+
+    let (same, next, clear) = reply(
+        service
+            .prepare_channel_control(request("/models approved"))
+            .await
+            .unwrap(),
+    );
+    assert!(same.unwrap().starts_with("Provider switched to `approved`"));
+    assert_eq!(
+        (next, clear),
+        (None, false),
+        "the current provider is not a switch"
+    );
+
+    let (empty, next, clear) = reply(
+        service
+            .prepare_channel_control(request("/model ``"))
+            .await
+            .unwrap(),
+    );
+    assert_eq!(
+        empty.as_deref(),
+        Some("Model ID cannot be empty. Use `/model <model-id>`.")
+    );
+    assert_eq!((next, clear), (None, false));
+
+    for listing in ["/models", "/model"] {
+        let (text, next, clear) = reply(
+            service
+                .prepare_channel_control(request(listing))
+                .await
+                .unwrap(),
+        );
+        assert!(
+            text.is_some_and(|text| !text.is_empty()),
+            "{listing} lists something"
+        );
+        assert_eq!((next, clear), (None, false));
+    }
+
+    let oversized = service
+        .prepare_channel_control(Request::Overflow {
+            message: "x".repeat(tinychannels_bus::module_runtime::PREPARATION_MESSAGE_BYTES),
+        })
+        .await;
+    assert!(
+        oversized.is_err(),
+        "a request over the byte limit is refused"
+    );
+    service.shutdown().await.unwrap();
+}
